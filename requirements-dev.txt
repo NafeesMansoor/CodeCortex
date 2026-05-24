@@ -1,0 +1,15 @@
+# CodeCortex — development & test dependencies
+-r requirements.txt
+
+pytest>=8.0
+pytest-cov>=4.0
+ruff>=0.4
+mypy>=1.8
+
+# Semantic indexing (used in integration tests)
+jedi>=0.19
+
+# Clustering (used in Phase 5 tests)
+hdbscan>=0.8
+umap-learn>=0.5
+scikit-learn>=1.3

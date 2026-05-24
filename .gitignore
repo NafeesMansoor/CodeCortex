@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# CodeCortex runtime artifacts
+.codecortex/
+*.graph.json
+*.faiss
+*.pkl
+
+# Docs (internal design notes — not for public repo)
+docs/
+
+# Docs build
+site/
+
+# Claude Code — machine-specific settings (keep commands/)
+.claude/settings.json
+.claude/settings.local.json
+
+# Secrets & environment
+.env
+.env.*
+secrets.yaml

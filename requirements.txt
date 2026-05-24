@@ -1,0 +1,31 @@
+# CodeCortex — runtime dependencies
+# Install: pip install -r requirements.txt
+
+# Core parsing
+tree-sitter>=0.22
+tree-sitter-python>=0.22
+tree-sitter-javascript>=0.22
+tree-sitter-typescript>=0.22
+
+# Graph & numerical
+networkx>=3.1
+numpy>=1.24
+
+# Vector search
+faiss-cpu>=1.7
+
+# Configuration
+pyyaml>=6.0
+
+# ── Optional: real embeddings (pip install -r requirements-embeddings.txt) ──
+# sentence-transformers>=2.6
+# torch>=2.0
+
+# ── Optional: LSP/Jedi semantic indexing ───────────────────────────────────
+# jedi>=0.19
+# pygls>=1.0
+
+# ── Optional: clustering ───────────────────────────────────────────────────
+# hdbscan>=0.8
+# umap-learn>=0.5
+# scikit-learn>=1.3

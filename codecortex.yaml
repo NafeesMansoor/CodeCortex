@@ -1,0 +1,27 @@
+codecortex:
+  # Traversal
+  bfs_depth: 3
+  max_nodes_per_query: 500
+
+  # Graph construction
+  enable_cpg: true           # include CFG/DFG/endpoint detection
+  enable_embeddings: true    # build FAISS embedding index
+  enable_clustering: true    # HDBSCAN semantic clustering
+  centrality_ranking: true   # weight retrieval by PageRank/betweenness
+
+  # Hybrid two-tier mode:
+  # Set true to skip CFG/DFG at build time and expand lazily per query.
+  on_demand_cfg: false
+  on_demand_dfg: false
+
+  # Embedding provider: stub | local | openai
+  embedding_backend: stub
+  embedding_dimensions: 384
+
+  # Clustering
+  min_cluster_size: 5
+
+  # Retrieval
+  retrieval_top_k: 20
+  token_budget: 4000
+  min_semantic_score: 0.0
