@@ -51,4 +51,5 @@ site/
 # Secrets & environment
 .env
 .env.*
+!.env.example
 secrets.yaml
