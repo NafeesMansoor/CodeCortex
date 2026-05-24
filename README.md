@@ -643,6 +643,4 @@ MIT
 
 ## Author
 
-**Prof. Dr. Nafees Mansoor**
-University of Liberal Arts Bangladesh
-nafees.mansoor@ulab.edu.bd
+**Nafees Mansoor**
