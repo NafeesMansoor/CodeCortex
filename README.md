@@ -2,7 +2,9 @@
 
 **Adaptive semantic intelligence engine for large-scale code understanding.**
 
-CodeCortex transforms source code into a living, queryable semantic graph — combining Code Property Graphs, real embedding models, approximate nearest-neighbor retrieval, and intelligent graph traversal into a unified pipeline purpose-built for production-scale repositories.
+> Version 1.0.0 — Production Release
+
+CodeCortex transforms source code into a living, queryable semantic graph — combining Code Property Graphs, real embedding models, approximate nearest-neighbor retrieval, intelligent graph traversal, and an interactive human-facing visualization layer into a unified platform purpose-built for production-scale repositories.
 
 ---
 
@@ -14,8 +16,9 @@ CodeCortex is not a linter, not a static analyzer, and not a dependency graph vi
 - *What is the full blast radius if `UserService.authenticate` changes?*
 - *Which functions are semantically similar to "authentication middleware"?*
 - *What does the dataflow look like through this API endpoint?*
+- *How are these modules architecturally coupled?*
 
-It ingests multi-language source code and produces a compressed, semantically-enriched graph that supports sub-20 ms retrieval across repositories of 100k+ nodes.
+It ingests multi-language source code and produces a compressed, semantically-enriched graph that supports sub-20 ms retrieval across repositories of 100k+ nodes — and renders as a fully interactive visual graph for human exploration.
 
 ---
 
@@ -32,20 +35,20 @@ Source Files (Python · JavaScript · TypeScript · PHP)
                    │
                    ▼
 ┌───────────────────────────────────┐
-│   Tier 2 — Code Property Graph    │  AST + CFG + DFG + Endpoints
-│   Hybrid CPG (pruned, bounded)    │  Semantic node filtering
+│   Tier 2 — Hybrid Code Property   │  AST + CFG + DFG + Endpoints
+│   Graph  (pruned, bounded)        │  60–80% node reduction
 └──────────────────┬────────────────┘
                    │
                    ▼
 ┌───────────────────────────────────┐
-│   Tier 3 — Embedding Layer        │  CodeBERT · UniXcoder · local models
+│   Tier 3 — Embedding Layer        │  CodeBERT · local models · OpenAI
 │   FAISS IVF · HNSW · cosine ANN  │  Batched · incremental · cached
 └──────────────────┬────────────────┘
                    │
                    ▼
 ┌───────────────────────────────────┐
-│   Clustering & Community          │  Louvain · HDBSCAN · spectral
-│   Adaptive cluster sizing         │  Semantic group labeling
+│   Clustering & Community          │  Louvain · HDBSCAN · adaptive
+│   Semantic group labeling         │  Cluster confidence scoring
 └──────────────────┬────────────────┘
                    │
                    ▼
@@ -54,11 +57,14 @@ Source Files (Python · JavaScript · TypeScript · PHP)
 │   Semantic-aware path scoring     │  Impact radius · Taint flow
 └──────────────────┬────────────────┘
                    │
-                   ▼
-┌───────────────────────────────────┐
-│   Retrieval Orchestration         │  Hybrid semantic + structural
-│   Token-budget context generation │  AI-ready output
-└───────────────────────────────────┘
+             ┌─────┴──────┐
+             ▼            ▼
+┌────────────────┐  ┌──────────────────────┐
+│   Retrieval    │  │  Graph Visualization  │
+│   Layer        │  │  Interactive Explorer │
+│   AI-ready     │  │  Human-centric UI     │
+│   context      │  │  Zero pipeline impact │
+└────────────────┘  └──────────────────────┘
 ```
 
 ### Key Design Decisions
@@ -70,13 +76,14 @@ Source Files (Python · JavaScript · TypeScript · PHP)
 | Semantic-only centrality | Filtering out VARIABLE/PARAMETER/CALLSITE nodes gives 32× better PageRank discrimination. |
 | On-demand CFG/DFG | Tier-1 index builds in seconds; deep CPG is only expanded for files touched by a query. |
 | Incremental embedding updates | Only re-embed nodes whose source files changed (mtime-driven delta). |
+| Visualization as a separate layer | Graph explorer consumes exported data — zero changes to pipeline internals. |
 
 ---
 
 ## Major Capabilities
 
 ### Semantic Retrieval
-Natural language queries return ranked, structurally-aware results across the full codebase. Results are fused from embedding similarity, graph centrality, and cluster membership.
+Natural language queries return ranked, structurally-aware results. Results are fused from embedding similarity, graph centrality, and cluster membership.
 
 ```python
 from codecortex import CodeCortexPipeline
@@ -102,6 +109,14 @@ Identify structurally critical nodes by composite centrality: PageRank, betweenn
 hotspots = pipeline.top_nodes(n=20)
 ```
 
+### Interactive Graph Visualization
+Launch a full-featured browser-based graph explorer. Navigate the codebase visually, inspect semantic clusters, trace impact paths, and identify hotspots — all without modifying a line of pipeline code.
+
+```bash
+codecortex visualize /path/to/repo
+# Opens http://localhost:7979 in the browser
+```
+
 ### Incremental Indexing
 Reindex a single changed file without rebuilding the full graph.
 
@@ -111,12 +126,66 @@ pipeline.reindex_file("/path/to/repo/auth/service.py")
 
 ---
 
+## Interactive Graph Explorer
+
+The visualization layer is a purpose-built human interface on top of the semantic graph. It runs as a local web server and opens automatically in the browser.
+
+### Features
+
+| Feature | Description |
+|---------|-------------|
+| Force / Hierarchy / Circle / Grid / Concentric layouts | Switch between graph layouts instantly |
+| Node type legend | Click to show/hide nodes by kind (Function, Class, Endpoint, etc.) |
+| Semantic cluster chips | Filter the graph to a single semantic community |
+| Edge type legend | Understand CALLS, IMPORTS, INHERITS, CONTROLS, READS, WRITES |
+| Hotspot highlighting | One-click to dim all non-hotspot nodes |
+| Variable/Parameter toggle | Show or hide low-level structural noise |
+| Centrality slider | Progressively filter out low-importance nodes |
+| Symbol search | Fuzzy match by name, kind, or file path |
+| Node detail panel | Click any node: file, line, centrality score, cluster, docstring, connections |
+| Neighbor traversal | Click neighbors in the panel to jump to them |
+| Minimap | Viewport overview with live update |
+| Zoom / Pan / Fit | Full graph navigation controls |
+| Keyboard shortcuts | `Ctrl/Cmd+F` search · `Esc` deselect |
+
+### Launch the Explorer
+
+```bash
+# Basic launch
+codecortex visualize .
+
+# Point at any repository
+codecortex visualize /path/to/your/repo
+
+# Custom port, no auto-open
+codecortex visualize . --port 8080 --no-open
+
+# Limit to specific languages
+codecortex visualize . --languages py ts
+```
+
+### What You Can Do in the Explorer
+
+**Architecture discovery** — use the Hierarchy layout to see module structure from top to bottom.
+
+**Hotspot review** — click "Hotspots" in the header to highlight the top 10% most-connected nodes. These are your highest-risk change points.
+
+**Cluster exploration** — click a semantic cluster chip to isolate one community and understand what it does.
+
+**Impact tracing** — click any node, inspect its connections in the detail panel, and jump through the call chain.
+
+**Dependency audit** — filter to IMPORTS_FROM edges only to map inter-module dependencies cleanly.
+
+**Onboarding** — point a new team member at the graph to let them explore the codebase structure visually before reading a single line of code.
+
+---
+
 ## Repository Structure
 
 ```
-codecortex/                 Main package
+codecortex/                 Main package + unified CLI
   __init__.py               Public API surface
-  cli.py                    Unified CLI entry point
+  cli.py                    Unified CLI (index / query / visualize)
   config.py                 YAML config loader
   index.py                  Index subcommand
   query.py                  Query subcommand
@@ -182,22 +251,20 @@ performance/                Incremental performance optimizations
   parallel_indexer.py       ThreadPoolExecutor multi-file indexing
   delta_embedder.py         Mtime-driven incremental re-embedding
 
+visualization/              Interactive graph explorer (human-facing)
+  __init__.py
+  graph_exporter.py         Pipeline state → visualization JSON
+  server.py                 Local HTTP server + browser launcher
+  static/
+    index.html              Full interactive graph UI (Cytoscape.js)
+
 tests/                      Test suite (223 tests)
-  test_phase1_core.py
-  test_phase2_indexing.py
-  test_phase3_cpg.py
-  test_phase4_embeddings.py
-  test_phase5_clustering.py
-  test_phase6_traversal.py
-  test_phase7_ranking.py
-  test_phase8_retrieval.py
+  test_phase1_core.py       … through test_phase10_performance.py
   benchmarks/               Performance benchmarks
     benchmark_runner.py     Composite score benchmark
-    bench_v01.py            Stage-wise V0.1 evaluation
-    bench_v02.py            Per-phase V0.2 evaluation
+    bench_v01.py            Stage-wise evaluation
+    bench_v02.py            Per-phase architectural evaluation
 
-docs/                       Documentation
-  results.md                Benchmark history
 codecortex.yaml             Default configuration
 ```
 
@@ -214,7 +281,7 @@ codecortex.yaml             Default configuration
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/nafees-mansoor/codecortex.git
+git clone https://github.com/NafeesMansoor/codecortex.git
 cd codecortex
 
 # 2. Create a virtual environment
@@ -224,27 +291,28 @@ source .venv/bin/activate         # Windows: .venv\Scripts\activate
 # 3. Install core dependencies
 pip install -r requirements.txt
 
-# 4. Install the package in editable mode
+# 4. Install in editable mode
 pip install -e .
 
-# 5. (Optional) Install all optional dependencies
+# 5. Optional: real embeddings + full semantic stack
 pip install -e ".[all]"
 
-# 6. Run the test suite
+# 6. Verify
 pytest tests/ --ignore=tests/benchmarks
+codecortex --help
 ```
 
 ### Production Setup
 
 ```bash
-# Minimal production install (no dev tools)
+# Minimal (structural analysis only)
 pip install codecortex
 
 # With GPU-accelerated embeddings
 pip install "codecortex[embeddings]"
 pip install torch --index-url https://download.pytorch.org/whl/cu121
 
-# With full semantic indexing stack
+# Full stack
 pip install "codecortex[all]"
 ```
 
@@ -261,43 +329,59 @@ pip install "codecortex[all]"
 
 ## Quick Start
 
-### Indexing a Repository
+### Index a Repository
 
 ```bash
-# Minimal index (call graph + imports, fast)
-codecortex index /path/to/repo
+# Fast structural index
+codecortex index .
 
 # Full CPG with embeddings and clustering
-codecortex index /path/to/repo --mode cpg --enable-embeddings --enable-clustering
+codecortex index . --mode cpg --enable-embeddings --enable-clustering
 
-# Hybrid mode: Tier-1 index at build time, CFG/DFG expanded on demand
-codecortex index /path/to/repo --on-demand-cfg --on-demand-dfg
+# Hybrid: Tier-1 at build time, CFG/DFG on demand
+codecortex index . --on-demand-cfg --on-demand-dfg
 
-# Save graph snapshot for fast subsequent loads
-codecortex index /path/to/repo --save-snapshot .codecortex/graph.json
+# Save snapshot for fast reload
+codecortex index . --save-snapshot .codecortex/graph.json
 
-# Limit to specific languages
-codecortex index /path/to/repo --languages py ts
+# Limit languages
+codecortex index . --languages py ts
 ```
 
-### Querying
+### Query
 
 ```bash
 # Natural language query
-codecortex query --query "authentication middleware" --target /path/to/repo
+codecortex query --query "authentication middleware" --target .
 
 # Impact analysis
-codecortex query --impact UserService.authenticate --target /path/to/repo
+codecortex query --impact UserService.authenticate --target .
 
 # JSON output
-codecortex query --query "HTTP routing" --json --target /path/to/repo
+codecortex query --query "HTTP routing" --json --target .
 
-# With centrality ranking and larger context
+# With centrality ranking and larger context budget
 codecortex query \
   --query "database connection pooling" \
   --enable-centrality-ranking \
   --max-tokens 5000 \
-  --target /path/to/repo
+  --target .
+```
+
+### Visualize
+
+```bash
+# Launch graph explorer (opens browser automatically)
+codecortex visualize .
+
+# Custom port
+codecortex visualize /path/to/repo --port 8080
+
+# Headless (server only, no browser open)
+codecortex visualize . --no-open
+
+# Limit to Python and TypeScript
+codecortex visualize . --languages py ts
 ```
 
 ### Python API
@@ -305,23 +389,21 @@ codecortex query \
 ```python
 from codecortex import CodeCortexPipeline, PipelineConfig
 
-# Configure
 config = PipelineConfig(
-    embedding_backend="local",      # or "stub" / "openai"
+    embedding_backend="local",
     enable_clustering=True,
-    use_louvain=True,               # graph-based community detection
-    use_beam_traversal=True,        # semantic-aware beam search
-    use_ppr=True,                   # personalized PageRank
-    use_graph_pruning=True,         # 60–80% node reduction
+    use_louvain=True,
+    use_beam_traversal=True,
+    use_ppr=True,
+    use_graph_pruning=True,
 )
 
-# Build once
 pipeline = CodeCortexPipeline.from_directory("/path/to/repo", config=config)
 
-# Query
+# Semantic query
 context = pipeline.query("authentication flow", max_tokens=3000)
 
-# Retrieve raw results
+# Ranked results
 results = pipeline.retrieve("database models")
 for r in results:
     print(r.qualified_name, r.score)
@@ -334,20 +416,24 @@ top = pipeline.top_nodes(n=20)
 
 # Incremental update
 pipeline.reindex_file("/path/to/repo/auth/service.py")
+
+# Export for visualization
+from visualization import export_pipeline
+graph_json = export_pipeline(pipeline, project_name="my-repo")
 ```
 
 ---
 
 ## Configuration
 
-`codecortex.yaml` controls all pipeline behavior:
+`codecortex.yaml` in your project root:
 
 ```yaml
 codecortex:
   # Graph construction
-  enable_cpg: true           # Full CPG with CFG/DFG/endpoints
-  on_demand_cfg: false       # Defer CFG to query time (Tier-2 mode)
-  on_demand_dfg: false       # Defer DFG to query time
+  enable_cpg: true
+  on_demand_cfg: false
+  on_demand_dfg: false
 
   # Embedding provider: stub | local | openai
   embedding_backend: stub
@@ -370,27 +456,23 @@ codecortex:
   centrality_ranking: true
 ```
 
-CodeCortex searches for `codecortex.yaml` by walking up from the target directory.
-
 ---
 
 ## Performance Modes
 
 ### Lightweight Mode
-Fast index, structural retrieval only. No embeddings, no clustering.
+Fast index, structural retrieval only. Builds in <1s for 100 files.
 
 ```yaml
 codecortex:
-  enable_cpg: false          # Call + import graph only
+  enable_cpg: false
   enable_embeddings: false
   enable_clustering: false
   centrality_ranking: false
 ```
 
-Build time: <1s for 100 files. BFS latency: <1 ms.
-
 ### Balanced Mode
-Default. Full CPG with stub embeddings for structural + approximate semantic retrieval.
+Default. Full CPG with stub embeddings. Builds in ~8s for 60 files.
 
 ```yaml
 codecortex:
@@ -399,15 +481,13 @@ codecortex:
   enable_clustering: true
 ```
 
-Build time: ~8s for 60 files. Retrieval: <5 ms.
-
 ### Deep Semantic Analysis Mode
-Real code-aware embeddings, Louvain clustering, beam traversal, PPR ranking.
+Real code-aware embeddings, Louvain clustering, beam traversal, personalized PageRank. Best retrieval quality.
 
 ```yaml
 codecortex:
   enable_cpg: true
-  embedding_backend: local   # sentence-transformers
+  embedding_backend: local
   enable_clustering: true
   use_louvain: true
   use_beam_traversal: true
@@ -415,10 +495,10 @@ codecortex:
   use_graph_pruning: true
 ```
 
-Best retrieval quality. Requires `pip install "codecortex[all]"`.
+Requires: `pip install "codecortex[all]"`
 
 ### Enterprise Scale Mode
-On-demand CFG/DFG + graph pruning + parallel indexing + incremental updates.
+On-demand CPG expansion + graph pruning + parallel indexing + incremental updates. Designed for monorepos with 500k+ LOC.
 
 ```yaml
 codecortex:
@@ -426,73 +506,25 @@ codecortex:
   on_demand_dfg: true
   use_graph_pruning: true
   embedding_backend: openai
-  embedding_dimensions: 3072  # text-embedding-3-large
-```
-
-Designed for monorepos with 500k+ LOC.
-
----
-
-## Indexing Workflow
-
-```
-1. Parser discovers source files (py/js/ts/php)
-2. Language parser extracts NodeInfo + EdgeInfo from AST
-3. CPGBuilder ingests into GraphStore (SQLite, :memory:, or file)
-4. If enable_cfg: CFGBuilder adds CONTROLS edges
-5. If enable_dfg: DFGBuilder adds READS/WRITES edges
-6. If use_graph_pruning: GraphPruner filters non-semantic nodes
-7. EmbeddingPipeline generates vectors and indexes into FAISS
-8. Clustering groups semantically similar nodes
-9. AdjacencyCache builds in-memory edge maps
-10. CentralityEngine computes composite scores
-11. RetrievalLayer is initialized and ready for queries
-```
-
-## Retrieval Workflow
-
-```
-Query: "authentication middleware"
-  │
-  ├─ EmbeddingStore.search(query_vec, top_k=20)   ← ANN search, <1ms
-  │     Returns: [(qualified_name, score), ...]
-  │
-  ├─ AdjacencyCache.expand(seed_nodes, depth=3)   ← in-memory BFS, <1ms
-  │     Returns: neighbor nodes
-  │
-  ├─ CentralityEngine.score(nodes)                ← pre-computed, O(1)
-  │     Adjusts: structural importance weighting
-  │
-  ├─ ClusterStore.lookup(nodes)                   ← cluster membership
-  │     Adjusts: community coherence bonus
-  │
-  └─ RetrievalLayer.rank_and_budget(results)      ← token budget enforcement
-        Returns: AI-ready context string
+  embedding_dimensions: 3072
 ```
 
 ---
 
 ## Benchmarking
 
-Run the composite performance benchmark against any codebase:
-
 ```bash
-# Against included reference codebase
-python tests/benchmarks/benchmark_runner.py --phase "V0.2-Full"
+# Run against any codebase
+python tests/benchmarks/benchmark_runner.py --target /path/to/repo --phase "v1.0"
 
-# Against your own repository
-python tests/benchmarks/benchmark_runner.py \
-  --target /path/to/your/repo/src \
-  --phase "My-Project"
-
-# Stage-wise V0.1 evaluation
+# Stage-wise evaluation
 python tests/benchmarks/bench_v01.py --target /path/to/repo
 
-# Per-phase V0.2 evaluation
+# Per-feature architectural evaluation
 python tests/benchmarks/bench_v02.py --target /path/to/repo
 
-# Suppress output, results only in docs/results.md
-python tests/benchmarks/benchmark_runner.py --quiet
+# Quiet mode (results appended to docs/results.md)
+python tests/benchmarks/benchmark_runner.py --target . --quiet
 ```
 
 ### Composite Score Formula
@@ -503,10 +535,10 @@ CodeCortex Score = 0.25×retrieval + 0.25×graph + 0.20×semantic + 0.15×effici
 
 | Dimension | What it measures |
 |-----------|-----------------|
-| Retrieval quality | Avg results returned per query (structural proxy) |
-| Graph quality | Edge/node ratio (relationship density) |
+| Retrieval quality | Results per query (structural proxy) |
+| Graph quality | Edge/node density ratio |
 | Semantic coverage | Nodes extracted per file |
-| Efficiency | Index build speed (1 - normalized build time) |
+| Efficiency | Index build speed |
 | Ranking discrimination | PageRank standard deviation |
 
 ---
@@ -514,7 +546,7 @@ CodeCortex Score = 0.25×retrieval + 0.25×graph + 0.20×semantic + 0.15×effici
 ## Testing
 
 ```bash
-# Run all unit tests
+# All 223 unit tests
 pytest tests/ --ignore=tests/benchmarks
 
 # With coverage
@@ -522,17 +554,6 @@ pytest tests/ --ignore=tests/benchmarks --cov=. --cov-report=term-missing
 
 # Specific phase
 pytest tests/test_phase3_cpg.py -v
-
-# All phases
-pytest tests/test_phase1_core.py \
-       tests/test_phase2_indexing.py \
-       tests/test_phase3_cpg.py \
-       tests/test_phase4_embeddings.py \
-       tests/test_phase5_clustering.py \
-       tests/test_phase6_traversal.py \
-       tests/test_phase7_ranking.py \
-       tests/test_phase8_retrieval.py \
-       -v
 ```
 
 ---
@@ -541,40 +562,26 @@ pytest tests/test_phase1_core.py \
 
 ### Debugging
 
-Enable debug logging to trace pipeline decisions:
-
 ```bash
-CODECORTEX_LOG_LEVEL=DEBUG codecortex index /path/to/repo
-```
-
-Or in Python:
-
-```python
-import logging
-logging.basicConfig(level=logging.DEBUG)
+CODECORTEX_LOG_LEVEL=DEBUG codecortex index .
 ```
 
 ### Profiling
 
 ```bash
-python -m cProfile -o profile.out tests/benchmarks/benchmark_runner.py --quiet
-python -c "import pstats; p = pstats.Stats('profile.out'); p.sort_stats('cumulative'); p.print_stats(20)"
+python -m cProfile -o profile.out tests/benchmarks/benchmark_runner.py --target . --quiet
+python -c "import pstats; p=pstats.Stats('profile.out'); p.sort_stats('cumulative'); p.print_stats(20)"
 ```
 
 ### Troubleshooting
 
-**`ImportError: No module named 'tree_sitter_python'`**
-```bash
-pip install tree-sitter-python
-```
+**No nodes in visualization / empty graph**
+Ensure the target directory contains supported source files (`.py`, `.js`, `.ts`, `.php`). Check `CODECORTEX_LOG_LEVEL=DEBUG codecortex visualize .` for parser errors.
 
-**`FAISS index empty / 0 nodes embedded`**
-The default `stub` provider skips embeddings. Set `embedding_backend: local` and install sentence-transformers:
-```bash
-pip install sentence-transformers
-```
+**Clustering produces 0 clusters**
+HDBSCAN requires real (non-stub) embeddings. Set `embedding_backend: local` and install sentence-transformers.
 
-**CPG build is slow (>10s for 60 files)**
+**Slow CPG build (>10s for 60 files)**
 Enable graph pruning and on-demand CFG/DFG:
 ```yaml
 use_graph_pruning: true
@@ -582,17 +589,14 @@ on_demand_cfg: true
 on_demand_dfg: true
 ```
 
-**Clustering produces 0 clusters**
-HDBSCAN requires ≥ `min_cluster_size` real (non-stub) embeddings. Use `embedding_backend: local` or lower `min_cluster_size`.
-
-**`jedi.InternalError` during indexing**
-Jedi is optional. CodeCortex falls back to tree-sitter parsing if Jedi fails. No action needed.
+**Browser does not open**
+Use `--no-open` and navigate manually to `http://localhost:7979`.
 
 ---
 
 ## Extensibility
 
-### Adding a Language Parser
+### Add a Language Parser
 
 ```python
 from core.parser_framework import LanguageParser
@@ -604,11 +608,10 @@ class RustParser(LanguageParser):
         return "rust"
 
     def parse(self, source: str, file_path: str) -> ParseResult:
-        # Extract nodes and edges
         ...
 ```
 
-### Adding an Embedding Provider
+### Add an Embedding Provider
 
 ```python
 from embeddings.provider_factory import EmbeddingProvider
@@ -616,45 +619,30 @@ import numpy as np
 
 class MyProvider(EmbeddingProvider):
     def embed(self, texts: list[str]) -> np.ndarray:
-        # Return shape (len(texts), dim)
         ...
 ```
 
-### Custom Traversal Strategy
+### Export Graph Programmatically
 
 ```python
-from traversal.traversal_engine import TraversalEngine
-from core.types import TraversalConfig
+from visualization import export_pipeline
+import json
 
-engine = TraversalEngine(store)
-nodes = engine.bfs(
-    seed=["MyClass.my_method"],
-    config=TraversalConfig(max_depth=5, edge_filter=["CALLS", "IMPORTS_FROM"]),
-)
+pipeline = CodeCortexPipeline.from_directory(".")
+data = export_pipeline(pipeline, project_name="my-project")
+json.dump(data, open("graph.json", "w"), indent=2)
 ```
-
----
-
-## Evaluation Methodology
-
-CodeCortex uses a multi-dimensional composite score that rewards semantic intelligence, not just graph size:
-
-- **Graph metrics**: node coverage, edge fidelity, density, avg degree
-- **Semantic metrics**: nodes/file coverage, embedding quality
-- **Retrieval metrics**: result count, query latency, embedding build time
-- **Ranking metrics**: PageRank spread (discrimination power)
-- **Efficiency metrics**: index build time, memory footprint, throughput
-
-The scoring framework explicitly penalizes graph explosion and rewards compact, semantically-rich graphs.
 
 ---
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT
 
 ---
 
 ## Author
 
-**Nafees Mansoor**
+**Prof. Dr. Nafees Mansoor**
+University of Liberal Arts Bangladesh
+nafees.mansoor@ulab.edu.bd

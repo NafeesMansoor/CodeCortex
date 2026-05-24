@@ -1,17 +1,17 @@
 [build-system]
 requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "codecortex"
-version = "0.2.0"
+version = "1.0.0"
 description = "Adaptive semantic intelligence engine for large-scale code understanding"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
-keywords = ["code-intelligence", "semantic-analysis", "graph", "embeddings", "retrieval"]
+keywords = ["code-intelligence", "semantic-analysis", "graph", "embeddings", "retrieval", "visualization"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
@@ -62,8 +62,8 @@ codecortex = "codecortex.cli:main"
 cx = "codecortex.cli:main"
 
 [project.urls]
-Repository = "https://github.com/nafees-mansoor/codecortex"
-Documentation = "https://github.com/nafees-mansoor/codecortex#readme"
+Repository = "https://github.com/NafeesMansoor/codecortex"
+Documentation = "https://github.com/NafeesMansoor/codecortex#readme"
 
 [tool.setuptools.packages.find]
 include = [
@@ -78,7 +78,11 @@ include = [
     "retrieval*",
     "pipeline*",
     "performance*",
+    "visualization*",
 ]
+
+[tool.setuptools.package-data]
+visualization = ["static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

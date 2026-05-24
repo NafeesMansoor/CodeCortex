@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CodeCortex — Semantic Graph Explorer</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0D1117;
+      --surface:   #161B22;
+      --surface2:  #1C2128;
+      --border:    #30363D;
+      --text:      #E6EDF3;
+      --text-muted:#8B949E;
+      --accent:    #58A6FF;
+      --accent2:   #388BFD;
+      --success:   #3FB950;
+      --warning:   #D29922;
+      --danger:    #F85149;
+      --hotspot:   #FF7B72;
+      --sidebar-w: 268px;
+      --panel-w:   300px;
+      --header-h:  52px;
+      --radius:    6px;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+
+    html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 13px; }
+
+    /* ── Layout ─────────────────────────────────────────────────────────── */
+    #app { display: grid; height: 100vh; grid-template-rows: var(--header-h) 1fr; grid-template-columns: var(--sidebar-w) 1fr; grid-template-areas: "header header" "sidebar main"; }
+
+    /* ── Header ─────────────────────────────────────────────────────────── */
+    #header {
+      grid-area: header;
+      display: flex; align-items: center; gap: 12px;
+      padding: 0 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      z-index: 10;
+    }
+    #logo { font-size: 15px; font-weight: 700; color: var(--accent); white-space: nowrap; letter-spacing: -0.3px; }
+    #logo span { color: var(--text-muted); font-weight: 400; font-size: 12px; margin-left: 6px; }
+    #search-wrap { position: relative; flex: 1; max-width: 420px; }
+    #search {
+      width: 100%; padding: 6px 10px 6px 32px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text); font-size: 13px; outline: none;
+    }
+    #search:focus { border-color: var(--accent); }
+    #search::placeholder { color: var(--text-muted); }
+    #search-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 14px; pointer-events: none; }
+    #match-count { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 11px; }
+
+    .hdr-btn {
+      display: flex; align-items: center; gap: 5px;
+      padding: 5px 10px; border: 1px solid var(--border);
+      background: var(--surface2); border-radius: var(--radius);
+      color: var(--text-muted); cursor: pointer; white-space: nowrap; font-size: 12px;
+      transition: border-color .15s, color .15s;
+    }
+    .hdr-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .hdr-btn.active { border-color: var(--accent); color: var(--accent); background: #1a2233; }
+    #hdr-right { display: flex; gap: 6px; margin-left: auto; }
+
+    /* ── Sidebar ─────────────────────────────────────────────────────────── */
+    #sidebar {
+      grid-area: sidebar;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow-y: auto; overflow-x: hidden;
+      display: flex; flex-direction: column;
+    }
+    #sidebar::-webkit-scrollbar { width: 4px; }
+    #sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .section { border-bottom: 1px solid var(--border); padding: 12px 14px; }
+    .section-title {
+      font-size: 11px; font-weight: 600; letter-spacing: .6px;
+      text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px;
+    }
+
+    /* Stats grid */
+    #stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .stat-card { background: var(--surface2); border-radius: var(--radius); padding: 8px 10px; }
+    .stat-val { font-size: 18px; font-weight: 700; color: var(--text); line-height: 1; }
+    .stat-lbl { font-size: 10px; color: var(--text-muted); margin-top: 3px; text-transform: uppercase; letter-spacing: .4px; }
+    .stat-card.accent .stat-val { color: var(--accent); }
+    .stat-card.success .stat-val { color: var(--success); }
+    .stat-card.danger .stat-val  { color: var(--hotspot); }
+    .stat-card.warn .stat-val   { color: var(--warning); }
+
+    /* Legend items */
+    .legend-item { display: flex; align-items: center; gap: 8px; padding: 3px 0; cursor: pointer; border-radius: 4px; }
+    .legend-item:hover { background: var(--surface2); padding-left: 4px; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .legend-label { flex: 1; color: var(--text-muted); }
+    .legend-count { font-size: 11px; color: var(--text-muted); background: var(--surface2); padding: 1px 6px; border-radius: 10px; }
+    .legend-item.hidden .legend-label, .legend-item.hidden .legend-count { opacity: .4; }
+
+    /* Edge legend */
+    .edge-legend-item { display: flex; align-items: center; gap: 8px; padding: 2px 0; cursor: pointer; }
+    .edge-line { width: 20px; height: 2px; border-radius: 1px; flex-shrink: 0; }
+
+    /* Filters */
+    .filter-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; }
+    .filter-row label { color: var(--text-muted); cursor: pointer; }
+    .toggle { position: relative; display: inline-block; width: 30px; height: 16px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; inset: 0; background: var(--border); border-radius: 8px; cursor: pointer; transition: .2s; }
+    .slider::before { content: ""; position: absolute; width: 12px; height: 12px; left: 2px; top: 2px; background: var(--text-muted); border-radius: 50%; transition: .2s; }
+    input:checked + .slider { background: var(--accent); }
+    input:checked + .slider::before { transform: translateX(14px); background: white; }
+
+    /* Layout buttons */
+    #layout-btns { display: flex; flex-wrap: wrap; gap: 5px; }
+    .layout-btn {
+      padding: 4px 10px; border: 1px solid var(--border);
+      background: var(--surface2); border-radius: var(--radius);
+      color: var(--text-muted); cursor: pointer; font-size: 11px;
+    }
+    .layout-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .layout-btn.active { border-color: var(--accent); color: var(--accent); background: #1a2233; }
+
+    /* Clusters section */
+    .cluster-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 8px; border-radius: 12px; font-size: 11px;
+      margin: 2px; cursor: pointer; border: 1px solid transparent;
+      background: var(--surface2);
+    }
+    .cluster-chip:hover { border-color: var(--border); }
+    .cluster-chip.active { border-color: var(--accent); }
+    .cluster-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    #cluster-chips { display: flex; flex-wrap: wrap; }
+
+    /* ── Main graph area ─────────────────────────────────────────────────── */
+    #main {
+      grid-area: main;
+      position: relative;
+      background: var(--bg);
+      overflow: hidden;
+    }
+    #cy { width: 100%; height: 100%; }
+
+    /* Floating controls */
+    #controls {
+      position: absolute; bottom: 16px; left: 16px;
+      display: flex; flex-direction: column; gap: 6px; z-index: 5;
+    }
+    .ctrl-btn {
+      width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); cursor: pointer; color: var(--text-muted);
+      font-size: 15px; transition: border-color .15s, color .15s;
+    }
+    .ctrl-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Minimap */
+    #minimap {
+      position: absolute; bottom: 16px; right: 16px;
+      width: 160px; height: 110px;
+      background: rgba(22,27,34,.92); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden; z-index: 5; cursor: grab;
+    }
+    #minimap canvas { width: 100% !important; height: 100% !important; }
+
+    /* Loading overlay */
+    #loading {
+      position: absolute; inset: 0; background: var(--bg);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 100; gap: 16px;
+    }
+    #loading.hidden { display: none; }
+    .spinner {
+      width: 36px; height: 36px; border: 3px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading-msg { color: var(--text-muted); font-size: 13px; }
+
+    /* Tooltip */
+    #tooltip {
+      position: fixed; pointer-events: none;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 8px 12px;
+      font-size: 12px; z-index: 50; max-width: 260px;
+      box-shadow: 0 4px 16px rgba(0,0,0,.4);
+      display: none;
+    }
+    #tooltip.visible { display: block; }
+    #tooltip .tt-name { font-weight: 600; color: var(--text); margin-bottom: 4px; word-break: break-all; }
+    #tooltip .tt-kind { color: var(--accent); font-size: 11px; margin-bottom: 3px; }
+    #tooltip .tt-meta { color: var(--text-muted); font-size: 11px; line-height: 1.5; }
+
+    /* ── Detail panel ────────────────────────────────────────────────────── */
+    #detail-panel {
+      position: absolute; right: 0; top: 0; bottom: 0;
+      width: var(--panel-w); background: var(--surface);
+      border-left: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      transform: translateX(100%); transition: transform .2s ease;
+      z-index: 6; overflow: hidden;
+    }
+    #detail-panel.open { transform: translateX(0); }
+
+    #panel-header {
+      padding: 12px 14px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+    }
+    #panel-name { font-size: 14px; font-weight: 600; word-break: break-all; line-height: 1.3; }
+    #panel-close { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 18px; line-height: 1; padding: 0 2px; flex-shrink: 0; }
+    #panel-close:hover { color: var(--text); }
+
+    #panel-body { flex: 1; overflow-y: auto; padding: 12px 14px; }
+    #panel-body::-webkit-scrollbar { width: 4px; }
+    #panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .meta-row { display: flex; justify-content: space-between; align-items: baseline; padding: 4px 0; border-bottom: 1px solid var(--border); }
+    .meta-key { color: var(--text-muted); font-size: 11px; }
+    .meta-val { color: var(--text); font-size: 12px; text-align: right; max-width: 170px; word-break: break-all; }
+    .badge {
+      display: inline-block; padding: 2px 7px; border-radius: 10px;
+      font-size: 10px; font-weight: 600; letter-spacing: .3px;
+    }
+    .badge-kind { background: #1f2d47; color: var(--accent); }
+    .badge-hotspot { background: #3d1f1f; color: var(--hotspot); }
+    .badge-test { background: #2a1f3d; color: #D2A8FF; }
+    .badge-cluster { color: white; }
+
+    .panel-section-title {
+      font-size: 10px; font-weight: 600; letter-spacing: .5px;
+      text-transform: uppercase; color: var(--text-muted);
+      margin: 14px 0 6px;
+    }
+    .neighbor-item {
+      display: flex; align-items: center; gap: 8px; padding: 5px 6px;
+      border-radius: 4px; cursor: pointer;
+    }
+    .neighbor-item:hover { background: var(--surface2); }
+    .neighbor-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .neighbor-name { flex: 1; font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .neighbor-kind { font-size: 10px; color: var(--text-muted); }
+    .neighbor-dir { font-size: 10px; color: var(--text-muted); background: var(--surface2); padding: 1px 5px; border-radius: 3px; }
+
+    .docstring { font-size: 11px; color: var(--text-muted); background: var(--surface2); padding: 8px; border-radius: 4px; line-height: 1.5; margin-top: 4px; font-style: italic; }
+
+    /* Centrality bar */
+    .score-bar-wrap { margin: 6px 0; }
+    .score-bar-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 3px; }
+    .score-bar-bg { height: 4px; background: var(--border); border-radius: 2px; }
+    .score-bar-fill { height: 4px; background: var(--accent); border-radius: 2px; transition: width .4s ease; }
+
+    /* Empty state */
+    #panel-empty { padding: 24px 14px; text-align: center; color: var(--text-muted); font-size: 12px; line-height: 1.6; }
+    #panel-empty .empty-icon { font-size: 28px; margin-bottom: 8px; opacity: .4; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Header -->
+  <header id="header">
+    <div id="logo">CodeCortex <span>Semantic Graph Explorer</span></div>
+    <div id="search-wrap">
+      <span id="search-icon">⌕</span>
+      <input id="search" type="text" placeholder="Search nodes by name, kind, or file…" autocomplete="off" />
+      <span id="match-count"></span>
+    </div>
+    <div id="hdr-right">
+      <button class="hdr-btn" id="btn-labels" title="Toggle node labels">Labels</button>
+      <button class="hdr-btn" id="btn-hotspots" title="Highlight hotspot nodes">Hotspots</button>
+      <button class="hdr-btn" id="btn-fit" title="Fit graph to screen">Fit</button>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <!-- Stats -->
+    <div class="section">
+      <div class="section-title">Overview</div>
+      <div id="stats-grid">
+        <div class="stat-card accent"><div class="stat-val" id="s-nodes">—</div><div class="stat-lbl">Nodes</div></div>
+        <div class="stat-card success"><div class="stat-val" id="s-edges">—</div><div class="stat-lbl">Edges</div></div>
+        <div class="stat-card warn"><div class="stat-val" id="s-clusters">—</div><div class="stat-lbl">Clusters</div></div>
+        <div class="stat-card danger"><div class="stat-val" id="s-hotspots">—</div><div class="stat-lbl">Hotspots</div></div>
+      </div>
+    </div>
+
+    <!-- Node type legend -->
+    <div class="section">
+      <div class="section-title">Node Types</div>
+      <div id="node-legend"></div>
+    </div>
+
+    <!-- Clusters -->
+    <div class="section" id="cluster-section" style="display:none">
+      <div class="section-title">Semantic Clusters</div>
+      <div id="cluster-chips"></div>
+    </div>
+
+    <!-- Edge types -->
+    <div class="section">
+      <div class="section-title">Edge Types</div>
+      <div id="edge-legend"></div>
+    </div>
+
+    <!-- Visibility filters -->
+    <div class="section">
+      <div class="section-title">Filters</div>
+      <div class="filter-row">
+        <label for="tog-var">Variables & Parameters</label>
+        <label class="toggle"><input type="checkbox" id="tog-var"><span class="slider"></span></label>
+      </div>
+      <div class="filter-row">
+        <label for="tog-callsite">Callsite nodes</label>
+        <label class="toggle"><input type="checkbox" id="tog-callsite"><span class="slider"></span></label>
+      </div>
+      <div class="filter-row">
+        <label for="tog-test">Test nodes</label>
+        <label class="toggle"><input type="checkbox" id="tog-test" checked><span class="slider"></span></label>
+      </div>
+      <div class="filter-row" style="margin-top:6px">
+        <label for="min-centrality" style="color:var(--text-muted)">Min centrality</label>
+        <span id="centrality-val" style="color:var(--text-muted);font-size:11px">0.00</span>
+      </div>
+      <input id="min-centrality" type="range" min="0" max="100" value="0"
+        style="width:100%;margin-top:4px;accent-color:var(--accent)">
+    </div>
+
+    <!-- Layout -->
+    <div class="section">
+      <div class="section-title">Layout</div>
+      <div id="layout-btns">
+        <button class="layout-btn active" data-layout="cose">Force</button>
+        <button class="layout-btn" data-layout="breadthfirst">Hierarchy</button>
+        <button class="layout-btn" data-layout="circle">Circle</button>
+        <button class="layout-btn" data-layout="grid">Grid</button>
+        <button class="layout-btn" data-layout="concentric">Concentric</button>
+        <button class="layout-btn" data-layout="random">Random</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Graph main area -->
+  <main id="main">
+    <div id="loading">
+      <div class="spinner"></div>
+      <div id="loading-msg">Loading semantic graph…</div>
+    </div>
+    <div id="cy"></div>
+    <div id="controls">
+      <div class="ctrl-btn" id="btn-zoom-in" title="Zoom in">+</div>
+      <div class="ctrl-btn" id="btn-zoom-out" title="Zoom out">−</div>
+      <div class="ctrl-btn" id="btn-center" title="Center graph">⊙</div>
+    </div>
+    <div id="minimap"></div>
+  </main>
+
+</div>
+
+<!-- Tooltip -->
+<div id="tooltip">
+  <div class="tt-name" id="tt-name"></div>
+  <div class="tt-kind" id="tt-kind"></div>
+  <div class="tt-meta" id="tt-meta"></div>
+</div>
+
+<!-- Detail panel (slides in from right) -->
+<div id="detail-panel">
+  <div id="panel-header">
+    <div id="panel-name">—</div>
+    <button id="panel-close" title="Close">✕</button>
+  </div>
+  <div id="panel-body">
+    <div id="panel-empty">
+      <div class="empty-icon">◈</div>
+      Click any node to inspect its details, dependencies, and connections.
+    </div>
+    <div id="panel-content" style="display:none"></div>
+  </div>
+</div>
+
+<script>
+// ── Edge color map ────────────────────────────────────────────────────────
+const EDGE_COLORS = {
+  CALLS:          "#F78166",
+  IMPORTS_FROM:   "#1F6FEB",
+  INHERITS:       "#3FB950",
+  IMPLEMENTS:     "#79C0FF",
+  CONTAINS:       "#484F58",
+  DEPENDS_ON:     "#D29922",
+  REFERENCES:     "#484F58",
+  USES:           "#484F58",
+  DEFINES:        "#388BFD",
+  EXTENDS:        "#3FB950",
+  TESTED_BY:      "#D2A8FF",
+  TESTS:          "#D2A8FF",
+  CONTROLS:       "#FF6E40",
+  READS:          "#A371F7",
+  WRITES:         "#FF7B72",
+  PARAMETER_OF:   "#6E7681",
+};
+const EDGE_DEFAULT = "#30363D";
+
+function edgeColor(kind) { return EDGE_COLORS[kind] || EDGE_DEFAULT; }
+
+// ── State ────────────────────────────────────────────────────────────────
+let cy = null;
+let allData = null;
+let maxCentrality = 0;
+let nodeCounts = {};
+let edgeCounts = {};
+let activeCluster = null;
+let hiddenKinds = new Set(["Variable", "Parameter", "Callsite"]);
+let showTests = true;
+let minCentralityPct = 0;
+let showLabels = true;
+let highlightHotspots = false;
+let searchQuery = "";
+
+// ── Load data ────────────────────────────────────────────────────────────
+fetch("/graph.json")
+  .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
+  .then(data => { allData = data; initViz(); })
+  .catch(e => {
+    document.getElementById("loading-msg").textContent = "Failed to load graph: " + e.message;
+  });
+
+// ── Init ────────────────────────────────────────────────────────────────
+function initViz() {
+  const meta = allData.metadata;
+  document.title = `CodeCortex — ${meta.project || "Graph Explorer"}`;
+
+  maxCentrality = Math.max(...allData.nodes.map(n => n.centrality), 0.001);
+
+  // Count by kind
+  allData.nodes.forEach(n => { nodeCounts[n.kind] = (nodeCounts[n.kind] || 0) + 1; });
+  allData.edges.forEach(e => { edgeCounts[e.kind] = (edgeCounts[e.kind] || 0) + 1; });
+
+  updateStats();
+  buildNodeLegend();
+  buildEdgeLegend();
+  buildClusterChips();
+  buildCytoscape();
+  bindControls();
+}
+
+function updateStats() {
+  const m = allData.metadata;
+  const vis = visibleNodes();
+  document.getElementById("s-nodes").textContent = vis.length;
+  document.getElementById("s-edges").textContent = allData.edges.length;
+  document.getElementById("s-clusters").textContent = m.cluster_count || 0;
+  document.getElementById("s-hotspots").textContent = m.hotspot_count || 0;
+}
+
+// ── Which nodes are visible given current filters ────────────────────────
+function visibleNodes() {
+  const minC = (minCentralityPct / 100) * maxCentrality;
+  return allData.nodes.filter(n => {
+    if (hiddenKinds.has(n.kind)) return false;
+    if (!showTests && n.is_test) return false;
+    if (n.centrality < minC && n.centrality > 0) return false;
+    if (activeCluster !== null && n.cluster_id !== activeCluster) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      if (!n.name.toLowerCase().includes(q) &&
+          !n.kind.toLowerCase().includes(q) &&
+          !n.file.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function visibleNodeIds() { return new Set(visibleNodes().map(n => n.id)); }
+
+// ── Build Cytoscape elements ─────────────────────────────────────────────
+function buildElements() {
+  const ids = visibleNodeIds();
+  const elements = [];
+
+  for (const n of allData.nodes) {
+    if (!ids.has(n.id)) continue;
+    const norm = maxCentrality > 0 ? n.centrality / maxCentrality : 0;
+    const size = 18 + Math.log1p(norm * 10) / Math.log1p(10) * 38;
+    elements.push({
+      data: {
+        id: n.id,
+        label: n.name,
+        kind: n.kind,
+        file: n.file,
+        language: n.language,
+        line: n.line,
+        cluster_id: n.cluster_id,
+        cluster_label: n.cluster_label,
+        cluster_color: n.cluster_color,
+        centrality: n.centrality,
+        fan_in: n.fan_in,
+        fan_out: n.fan_out,
+        is_hotspot: n.is_hotspot,
+        is_test: n.is_test,
+        docstring: n.docstring,
+        color: n.color,
+        size: Math.max(size, 16),
+      },
+    });
+  }
+
+  for (const e of allData.edges) {
+    if (!ids.has(e.source) || !ids.has(e.target)) continue;
+    if (e.source === e.target) continue;
+    elements.push({
+      data: {
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        kind: e.kind,
+        color: edgeColor(e.kind),
+      },
+    });
+  }
+
+  return elements;
+}
+
+// ── Cytoscape stylesheet ─────────────────────────────────────────────────
+function buildStylesheet() {
+  return [
+    {
+      selector: "node",
+      style: {
+        "width": "data(size)",
+        "height": "data(size)",
+        "background-color": "data(color)",
+        "border-width": 2,
+        "border-color": "data(cluster_color)",
+        "border-opacity": 0.6,
+        "label": showLabels ? "data(label)" : "",
+        "font-size": 9,
+        "color": "#E6EDF3",
+        "text-valign": "bottom",
+        "text-margin-y": 4,
+        "text-outline-width": 2,
+        "text-outline-color": "#0D1117",
+        "text-max-width": 80,
+        "text-overflow-wrap": "whitespace",
+        "text-wrap": "ellipsis",
+        "min-zoomed-font-size": 8,
+        "transition-property": "background-color, border-color, opacity, width, height",
+        "transition-duration": "0.15s",
+      },
+    },
+    {
+      selector: "node[?is_hotspot]",
+      style: {
+        "border-width": 3,
+        "border-color": "#FF7B72",
+        "border-opacity": 1,
+      },
+    },
+    {
+      selector: "node[?is_test]",
+      style: { "border-style": "dashed" },
+    },
+    {
+      selector: "edge",
+      style: {
+        "line-color": "data(color)",
+        "target-arrow-color": "data(color)",
+        "target-arrow-shape": "triangle",
+        "arrow-scale": 0.8,
+        "curve-style": "bezier",
+        "width": 1,
+        "opacity": 0.45,
+        "transition-property": "opacity, width",
+        "transition-duration": "0.15s",
+      },
+    },
+    {
+      selector: "node:selected",
+      style: {
+        "border-width": 3,
+        "border-color": "#58A6FF",
+        "border-opacity": 1,
+        "overlay-color": "#58A6FF",
+        "overlay-padding": 4,
+        "overlay-opacity": 0.1,
+      },
+    },
+    {
+      selector: "edge:selected",
+      style: { "opacity": 1, "width": 2.5 },
+    },
+    {
+      selector: ".dimmed",
+      style: { "opacity": 0.08 },
+    },
+    {
+      selector: ".highlighted",
+      style: { "opacity": 1, "width": 2 },
+    },
+    {
+      selector: ".neighbor",
+      style: {
+        "border-width": 2,
+        "border-color": "#58A6FF",
+        "border-opacity": 0.7,
+      },
+    },
+  ];
+}
+
+// ── Build Cytoscape instance ─────────────────────────────────────────────
+function buildCytoscape() {
+  cy = cytoscape({
+    container: document.getElementById("cy"),
+    elements: buildElements(),
+    style: buildStylesheet(),
+    layout: getLayout("cose"),
+    wheelSensitivity: 0.3,
+    minZoom: 0.05,
+    maxZoom: 8,
+  });
+
+  bindCyEvents();
+  document.getElementById("loading").classList.add("hidden");
+  drawMinimap();
+}
+
+function getLayout(name) {
+  const base = { animate: true, animationDuration: 400, fit: true, padding: 40 };
+  const layouts = {
+    cose: { name: "cose", ...base, nodeRepulsion: 8000, edgeElasticity: 100, gravity: 0.25, numIter: 1000 },
+    breadthfirst: { name: "breadthfirst", ...base, directed: true, spacingFactor: 1.4 },
+    circle: { name: "circle", ...base, spacingFactor: 1.2 },
+    grid: { name: "grid", ...base, spacingFactor: 1.3 },
+    concentric: { name: "concentric", ...base, concentric: n => n.data("fan_in") || 0, levelWidth: () => 3 },
+    random: { name: "random", ...base },
+  };
+  return layouts[name] || layouts.cose;
+}
+
+// ── Cytoscape events ─────────────────────────────────────────────────────
+const tooltip = document.getElementById("tooltip");
+
+function bindCyEvents() {
+  cy.on("mouseover", "node", e => showTooltip(e));
+  cy.on("mouseout",  "node", () => { tooltip.classList.remove("visible"); });
+  cy.on("tap", "node", e => selectNode(e.target));
+  cy.on("tap", e => { if (e.target === cy) clearSelection(); });
+  cy.on("zoom pan", () => drawMinimap());
+}
+
+function showTooltip(e) {
+  const d = e.target.data();
+  const r = e.originalEvent;
+  document.getElementById("tt-name").textContent = d.label;
+  document.getElementById("tt-kind").textContent = d.kind + (d.is_hotspot ? "  🔥 Hotspot" : "");
+  document.getElementById("tt-meta").innerHTML =
+    `File: ${shortPath(d.file)}<br>` +
+    `Fan-in: ${d.fan_in}  Fan-out: ${d.fan_out}<br>` +
+    `Centrality: ${(d.centrality * 100).toFixed(3)}%` +
+    (d.cluster_label ? `<br>Cluster: ${d.cluster_label}` : "");
+  tooltip.style.left = (r.clientX + 14) + "px";
+  tooltip.style.top  = (r.clientY + 14) + "px";
+  tooltip.classList.add("visible");
+}
+
+function selectNode(node) {
+  const d = node.data();
+  cy.elements().removeClass("dimmed highlighted neighbor");
+
+  const neighbors = node.neighborhood();
+  cy.elements().not(node).not(neighbors).addClass("dimmed");
+  neighbors.addClass("highlighted");
+  node.neighborhood("node").addClass("neighbor");
+
+  openDetailPanel(d, node);
+  drawMinimap();
+}
+
+function clearSelection() {
+  cy.elements().removeClass("dimmed highlighted neighbor");
+  closeDetailPanel();
+  cy.elements("node:selected").unselect();
+}
+
+// ── Detail panel ─────────────────────────────────────────────────────────
+const detailPanel = document.getElementById("detail-panel");
+
+function openDetailPanel(d, node) {
+  document.getElementById("panel-name").textContent = d.label;
+  document.getElementById("panel-empty").style.display = "none";
+  const content = document.getElementById("panel-content");
+  content.style.display = "block";
+
+  const normC = maxCentrality > 0 ? d.centrality / maxCentrality : 0;
+  const clusterColor = d.cluster_color || "#8B949E";
+
+  // Build neighbors list
+  const inNeighbors = node.incomers("node").map(n => ({ n, dir: "in" }));
+  const outNeighbors = node.outgoers("node").map(n => ({ n, dir: "out" }));
+  const allNeighbors = [...inNeighbors, ...outNeighbors].slice(0, 30);
+
+  const neighborHTML = allNeighbors.length > 0
+    ? allNeighbors.map(({n, dir}) => {
+        const nd = n.data();
+        return `<div class="neighbor-item" onclick="jumpToNode('${nd.id}')">
+          <span class="neighbor-dot" style="background:${nd.color}"></span>
+          <span class="neighbor-name">${nd.label}</span>
+          <span class="neighbor-kind">${nd.kind}</span>
+          <span class="neighbor-dir">${dir === "in" ? "←" : "→"}</span>
+        </div>`;
+      }).join("")
+    : `<div style="color:var(--text-muted);font-size:11px;padding:4px 0">No connections</div>`;
+
+  content.innerHTML = `
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px">
+      <span class="badge badge-kind">${d.kind}</span>
+      ${d.is_hotspot ? '<span class="badge badge-hotspot">🔥 Hotspot</span>' : ""}
+      ${d.is_test   ? '<span class="badge badge-test">Test</span>' : ""}
+      ${d.cluster_label ? `<span class="badge badge-cluster" style="background:${clusterColor}20;color:${clusterColor}">${d.cluster_label}</span>` : ""}
+    </div>
+
+    <div class="meta-row"><span class="meta-key">File</span><span class="meta-val" title="${d.file}">${shortPath(d.file)}</span></div>
+    ${d.line ? `<div class="meta-row"><span class="meta-key">Line</span><span class="meta-val">${d.line}</span></div>` : ""}
+    ${d.language ? `<div class="meta-row"><span class="meta-key">Language</span><span class="meta-val">${d.language}</span></div>` : ""}
+    <div class="meta-row"><span class="meta-key">Fan-in</span><span class="meta-val">${d.fan_in}</span></div>
+    <div class="meta-row"><span class="meta-key">Fan-out</span><span class="meta-val">${d.fan_out}</span></div>
+
+    <div class="panel-section-title">Centrality Score</div>
+    <div class="score-bar-wrap">
+      <div class="score-bar-label"><span>${(d.centrality * 100).toFixed(4)}%</span><span>of max</span></div>
+      <div class="score-bar-bg"><div class="score-bar-fill" style="width:${(normC*100).toFixed(1)}%"></div></div>
+    </div>
+
+    ${d.docstring ? `<div class="panel-section-title">Description</div><div class="docstring">${escHtml(d.docstring)}</div>` : ""}
+
+    <div class="panel-section-title">Connections (${allNeighbors.length})</div>
+    ${neighborHTML}
+  `;
+
+  detailPanel.classList.add("open");
+}
+
+function closeDetailPanel() {
+  detailPanel.classList.remove("open");
+}
+
+function jumpToNode(id) {
+  const node = cy.getElementById(id);
+  if (!node.length) return;
+  cy.animate({ center: { eles: node }, zoom: Math.max(cy.zoom(), 1.5), duration: 350 });
+  node.select();
+  selectNode(node);
+}
+
+// ── Legend builders ──────────────────────────────────────────────────────
+function buildNodeLegend() {
+  const colors = {
+    File:"#1F6FEB", Module:"#388BFD", Namespace:"#388BFD",
+    Class:"#3FB950", Struct:"#3FB950", Interface:"#79C0FF",
+    Function:"#F78166", Method:"#FF7B72", Endpoint:"#FF6E40",
+    Test:"#D2A8FF", Constant:"#FFA657", Enum:"#FFA657",
+    Type:"#79C0FF", Variable:"#6E7681", Parameter:"#6E7681", Callsite:"#6E7681",
+  };
+  const container = document.getElementById("node-legend");
+  container.innerHTML = "";
+
+  const kinds = Object.keys(nodeCounts).sort((a,b) => nodeCounts[b] - nodeCounts[a]);
+  for (const kind of kinds) {
+    if (!nodeCounts[kind]) continue;
+    const isHidden = hiddenKinds.has(kind);
+    const el = document.createElement("div");
+    el.className = "legend-item" + (isHidden ? " hidden" : "");
+    el.dataset.kind = kind;
+    el.innerHTML = `<span class="legend-dot" style="background:${colors[kind]||"#8B949E"}"></span>
+      <span class="legend-label">${kind}</span>
+      <span class="legend-count">${nodeCounts[kind]}</span>`;
+    el.addEventListener("click", () => toggleNodeKind(kind, el));
+    container.appendChild(el);
+  }
+}
+
+function toggleNodeKind(kind, el) {
+  if (hiddenKinds.has(kind)) { hiddenKinds.delete(kind); el.classList.remove("hidden"); }
+  else { hiddenKinds.add(kind); el.classList.add("hidden"); }
+  rebuildGraph();
+}
+
+function buildEdgeLegend() {
+  const container = document.getElementById("edge-legend");
+  container.innerHTML = "";
+  const kinds = Object.keys(edgeCounts).sort((a,b) => edgeCounts[b] - edgeCounts[a]);
+  for (const kind of kinds.slice(0, 12)) {
+    const el = document.createElement("div");
+    el.className = "edge-legend-item";
+    el.innerHTML = `<div class="edge-line" style="background:${edgeColor(kind)}"></div>
+      <span style="flex:1;color:var(--text-muted)">${kind}</span>
+      <span style="font-size:11px;color:var(--text-muted)">${edgeCounts[kind]}</span>`;
+    container.appendChild(el);
+  }
+}
+
+function buildClusterChips() {
+  const clusters = allData.clusters;
+  if (!clusters || clusters.length < 2) return;
+  document.getElementById("cluster-section").style.display = "block";
+  const container = document.getElementById("cluster-chips");
+  container.innerHTML = "";
+
+  const allChip = document.createElement("div");
+  allChip.className = "cluster-chip active";
+  allChip.innerHTML = `<span class="cluster-dot" style="background:var(--text-muted)"></span>All`;
+  allChip.addEventListener("click", () => { activeCluster = null; setActiveChip(allChip); rebuildGraph(); });
+  container.appendChild(allChip);
+
+  for (const c of clusters.slice(0, 14)) {
+    const chip = document.createElement("div");
+    chip.className = "cluster-chip";
+    chip.innerHTML = `<span class="cluster-dot" style="background:${c.color}"></span>${c.label}`;
+    chip.addEventListener("click", () => { activeCluster = c.id; setActiveChip(chip); rebuildGraph(); });
+    container.appendChild(chip);
+  }
+}
+
+function setActiveChip(activeEl) {
+  document.querySelectorAll(".cluster-chip").forEach(c => c.classList.remove("active"));
+  activeEl.classList.add("active");
+}
+
+// ── Rebuild graph after filter change ───────────────────────────────────
+function rebuildGraph() {
+  if (!cy) return;
+  const elements = buildElements();
+  cy.batch(() => {
+    cy.elements().remove();
+    cy.add(elements);
+    cy.style(buildStylesheet());
+  });
+  clearSelection();
+  updateStats();
+  applySearch();
+}
+
+// ── Controls ─────────────────────────────────────────────────────────────
+function bindControls() {
+  document.getElementById("btn-zoom-in").onclick = () => cy.zoom({ level: cy.zoom() * 1.3, renderedPosition: { x: cy.width()/2, y: cy.height()/2 } });
+  document.getElementById("btn-zoom-out").onclick = () => cy.zoom({ level: cy.zoom() * 0.77, renderedPosition: { x: cy.width()/2, y: cy.height()/2 } });
+  document.getElementById("btn-center").onclick = () => cy.fit(undefined, 40);
+  document.getElementById("btn-fit").onclick = () => cy.fit(undefined, 40);
+
+  document.getElementById("btn-labels").addEventListener("click", function() {
+    showLabels = !showLabels;
+    this.classList.toggle("active", showLabels);
+    cy.style(buildStylesheet());
+  });
+  document.getElementById("btn-labels").classList.add("active");
+
+  document.getElementById("btn-hotspots").addEventListener("click", function() {
+    highlightHotspots = !highlightHotspots;
+    this.classList.toggle("active", highlightHotspots);
+    if (highlightHotspots) {
+      cy.nodes("[?is_hotspot]").removeClass("dimmed");
+      cy.nodes("[!is_hotspot]").addClass("dimmed");
+    } else {
+      cy.elements().removeClass("dimmed");
+    }
+  });
+
+  document.getElementById("panel-close").onclick = clearSelection;
+
+  // Toggles
+  document.getElementById("tog-var").addEventListener("change", e => {
+    if (e.target.checked) { hiddenKinds.delete("Variable"); hiddenKinds.delete("Parameter"); }
+    else { hiddenKinds.add("Variable"); hiddenKinds.add("Parameter"); }
+    rebuildGraph();
+  });
+  document.getElementById("tog-callsite").addEventListener("change", e => {
+    if (e.target.checked) hiddenKinds.delete("Callsite");
+    else hiddenKinds.add("Callsite");
+    rebuildGraph();
+  });
+  document.getElementById("tog-test").addEventListener("change", e => {
+    showTests = e.target.checked;
+    rebuildGraph();
+  });
+
+  // Centrality slider
+  const slider = document.getElementById("min-centrality");
+  const sliderVal = document.getElementById("centrality-val");
+  slider.addEventListener("input", () => {
+    minCentralityPct = parseInt(slider.value);
+    sliderVal.textContent = minCentralityPct.toFixed(0) + "%";
+    rebuildGraph();
+  });
+
+  // Layout buttons
+  document.querySelectorAll(".layout-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".layout-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      cy.layout(getLayout(btn.dataset.layout)).run();
+    });
+  });
+
+  // Search
+  const searchEl = document.getElementById("search");
+  searchEl.addEventListener("input", () => {
+    searchQuery = searchEl.value.trim();
+    if (searchQuery.length > 0 && searchQuery.length < 2) return;
+    rebuildGraph();
+    applySearch();
+  });
+}
+
+function applySearch() {
+  const mc = document.getElementById("match-count");
+  if (!searchQuery) { mc.textContent = ""; return; }
+  const q = searchQuery.toLowerCase();
+  let count = 0;
+  cy.nodes().forEach(node => {
+    const d = node.data();
+    const matches = d.label.toLowerCase().includes(q) ||
+                    d.kind.toLowerCase().includes(q) ||
+                    (d.file || "").toLowerCase().includes(q);
+    if (matches) { node.flashClass("highlighted", 600); count++; }
+  });
+  mc.textContent = count ? `${count} match${count !== 1 ? "es" : ""}` : "No matches";
+}
+
+// ── Minimap ──────────────────────────────────────────────────────────────
+let mmCanvas = null;
+
+function drawMinimap() {
+  if (!cy || cy.elements().length === 0) return;
+  const container = document.getElementById("minimap");
+  if (!mmCanvas) {
+    mmCanvas = document.createElement("canvas");
+    mmCanvas.width = 160; mmCanvas.height = 110;
+    container.appendChild(mmCanvas);
+  }
+  const ctx = mmCanvas.getContext("2d");
+  ctx.clearRect(0, 0, 160, 110);
+
+  const bbox = cy.elements().boundingBox();
+  if (!bbox || bbox.w === 0 || bbox.h === 0) return;
+
+  const pad = 8;
+  const scaleX = (160 - pad*2) / bbox.w;
+  const scaleY = (110 - pad*2) / bbox.h;
+  const scale = Math.min(scaleX, scaleY) * 0.9;
+
+  function toMM(pos) {
+    return {
+      x: pad + (pos.x - bbox.x1) * scale,
+      y: pad + (pos.y - bbox.y1) * scale,
+    };
+  }
+
+  // Draw edges
+  ctx.globalAlpha = 0.25;
+  cy.edges().forEach(e => {
+    const sp = e.source().renderedPosition();
+    const tp = e.target().renderedPosition();
+    if (!sp || !tp) return;
+    const s = toMM(e.source().position());
+    const t = toMM(e.target().position());
+    ctx.strokeStyle = e.data("color") || "#30363D";
+    ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(t.x, t.y); ctx.stroke();
+  });
+
+  // Draw nodes
+  ctx.globalAlpha = 0.8;
+  cy.nodes().forEach(node => {
+    const p = toMM(node.position());
+    const r = Math.max(2, (node.data("size") || 20) * scale * 0.5);
+    ctx.fillStyle = node.data("color") || "#58A6FF";
+    ctx.beginPath(); ctx.arc(p.x, p.y, Math.min(r, 4), 0, Math.PI*2); ctx.fill();
+  });
+
+  // Draw viewport rect
+  const ext = cy.extent();
+  const v = {
+    x: toMM({ x: ext.x1, y: ext.y1 }),
+    w: (ext.x2 - ext.x1) * scale,
+    h: (ext.y2 - ext.y1) * scale,
+  };
+  ctx.globalAlpha = 0.5;
+  ctx.strokeStyle = "#58A6FF";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(v.x.x, v.x.y, v.w, v.h);
+  ctx.globalAlpha = 1;
+}
+
+// ── Utilities ────────────────────────────────────────────────────────────
+function shortPath(p) {
+  if (!p) return "—";
+  const parts = p.replace(/\\/g, "/").split("/");
+  return parts.length > 3 ? "…/" + parts.slice(-3).join("/") : p;
+}
+
+function escHtml(s) {
+  return (s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+// Keyboard shortcuts
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") clearSelection();
+  if ((e.metaKey || e.ctrlKey) && e.key === "f") {
+    e.preventDefault();
+    document.getElementById("search").focus();
+  }
+});
+</script>
+</body>
+</html>

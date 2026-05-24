@@ -51,7 +51,7 @@ class PipelineConfig:
     on_demand_cfg: bool = False
     on_demand_dfg: bool = False
 
-    # V0.2 architectural upgrades
+    # Advanced pipeline features
     use_graph_pruning: bool = False      # prune non-semantic nodes after CPG build
     use_louvain: bool = False            # Louvain graph-based clustering
     use_beam_traversal: bool = False     # beam search traversal in retrieval
@@ -104,7 +104,7 @@ class CodeCortexPipeline:
         self._adjacency_cache = None
         self._indexed_files: list[Path] = []      # all files seen at build time
         self._expanded_files: set[str] = set()    # files already expanded with CFG/DFG
-        self._louvain_result = None               # V0.2 Louvain result
+        self._louvain_result = None
 
     @classmethod
     def from_directory(
@@ -134,7 +134,7 @@ class CodeCortexPipeline:
         # Phase 1+2+3: Parse → CPG (CFG/DFG deferred when on_demand is set)
         stats.files_parsed, stats.parse_errors, self._store = self._build_cpg(root, languages)
 
-        # V0.2 Phase 1: Graph pruning — compact semantic graph
+        # Graph pruning — compact semantic graph
         if self.config.use_graph_pruning:
             self._store = self._apply_graph_pruning()
 
