@@ -121,8 +121,16 @@ class SemanticClusterer:
         try:
             return self._fit_hdbscan(vectors)
         except ImportError:
+            pass
+        try:
             logger.warning("hdbscan/umap not available, falling back to KMeans")
             return self._fit_kmeans(vectors)
+        except ImportError:
+            logger.warning(
+                "Clustering skipped — install scikit-learn for KMeans "
+                "or hdbscan for HDBSCAN clustering."
+            )
+            return [0] * len(vectors), "trivial"
 
     def _fit_hdbscan(self, vectors: list[list[float]]) -> tuple[list[int], str]:
         import numpy as np

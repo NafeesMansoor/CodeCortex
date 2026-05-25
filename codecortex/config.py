@@ -16,6 +16,11 @@ Expected file layout (codecortex.yaml):
       min_cluster_size: 5
       retrieval_top_k: 20
       token_budget: 4000
+      exclude_paths:
+        - vendor/
+        - node_modules/
+        - storage/
+        - bootstrap/cache/
 """
 
 from __future__ import annotations
@@ -48,6 +53,8 @@ class CodeCortexConfig:
     retrieval_top_k: int = 20
     token_budget: int = 4000
     min_semantic_score: float = 0.0
+
+    exclude_paths: list = field(default_factory=list)
 
     def to_pipeline_config(self):
         from pipeline.context_builder import PipelineConfig
@@ -99,6 +106,7 @@ def load(path: str | Path) -> CodeCortexConfig:
         "retrieval_top_k": "retrieval_top_k",
         "token_budget": "token_budget",
         "min_semantic_score": "min_semantic_score",
+        "exclude_paths": "exclude_paths",
     }
     kwargs = {attr: section[key] for key, attr in mapping.items() if key in section}
     return CodeCortexConfig(**kwargs)

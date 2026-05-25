@@ -25,3 +25,13 @@ codecortex:
   retrieval_top_k: 20
   token_budget: 4000
   min_semantic_score: 0.0
+
+  # Paths to exclude from indexing.
+  # Prevents vendor/, node_modules/, and generated directories from
+  # polluting the graph with third-party code.
+  exclude_paths:
+    - vendor
+    - node_modules
+    - storage
+    - bootstrap/cache
+    - .git

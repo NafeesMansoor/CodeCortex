@@ -20,6 +20,19 @@ from core.types import EdgeInfo, EdgeKind, NodeInfo, NodeKind, ParseResult, Sour
 logger = logging.getLogger(__name__)
 
 
+# tree-sitter-language-pack new callable API helpers
+def _children(node) -> list:
+    return [node.child(i) for i in range(node.child_count())]
+
+
+def _start_line(node) -> int:
+    return node.start_position().row + 1
+
+
+def _end_line(node) -> int:
+    return node.end_position().row + 1
+
+
 class PHPParser(LanguageParser):
     """PHP parser using tree-sitter — tuned for Laravel conventions."""
 
@@ -32,7 +45,7 @@ class PHPParser(LanguageParser):
 
             self._current_file_path = file_path
             parser = tslp.get_parser("php")
-            tree = parser.parse(source.encode("utf-8"))
+            tree = parser.parse(source)
 
             nodes = self.extract_definitions(tree, source)
             nodes.extend(self.extract_types(tree, source))
@@ -63,19 +76,19 @@ class PHPParser(LanguageParser):
         fp = getattr(self, "_current_file_path", "")
 
         def visit(node, parent_class=None):
-            if node.type == "function_definition":
+            if node.kind() == "function_definition":
                 name = self._get_name(node, source)
                 if name:
                     nodes.append(NodeInfo(
                         kind=NodeKind.FUNCTION,
                         name=name,
                         file_path=fp,
-                        range=SourceRange(node.start_point[0] + 1, node.end_point[0] + 1),
+                        range=SourceRange(_start_line(node), _end_line(node)),
                         language=self.language,
                         parent_name=parent_class,
                     ))
 
-            if node.type == "method_declaration":
+            if node.kind() == "method_declaration":
                 name = self._get_name(node, source)
                 if name:
                     modifiers = self._get_modifiers(node, source)
@@ -84,7 +97,7 @@ class PHPParser(LanguageParser):
                         kind=NodeKind.TEST if is_test else NodeKind.FUNCTION,
                         name=name,
                         file_path=fp,
-                        range=SourceRange(node.start_point[0] + 1, node.end_point[0] + 1),
+                        range=SourceRange(_start_line(node), _end_line(node)),
                         language=self.language,
                         parent_name=parent_class,
                         modifiers=modifiers,
@@ -92,13 +105,13 @@ class PHPParser(LanguageParser):
                     ))
 
             new_class = parent_class
-            if node.type == "class_declaration":
+            if node.kind() == "class_declaration":
                 new_class = self._get_name(node, source)
 
-            for child in node.children:
+            for child in _children(node):
                 visit(child, new_class)
 
-        visit(tree.root_node)
+        visit(tree.root_node())
         return nodes
 
     def extract_calls(self, tree, source: str) -> list[EdgeInfo]:
@@ -107,7 +120,7 @@ class PHPParser(LanguageParser):
         fp = getattr(self, "_current_file_path", "")
 
         def visit(node, enclosing=None):
-            if node.type in ("function_call_expression", "member_call_expression"):
+            if node.kind() in ("function_call_expression", "member_call_expression"):
                 target = self._get_call_target(node, source)
                 if target and enclosing:
                     edges.append(EdgeInfo(
@@ -118,13 +131,13 @@ class PHPParser(LanguageParser):
                     ))
 
             new_enc = enclosing
-            if node.type in ("function_definition", "method_declaration"):
+            if node.kind() in ("function_definition", "method_declaration"):
                 new_enc = self._get_name(node, source) or enclosing
 
-            for child in node.children:
+            for child in _children(node):
                 visit(child, new_enc)
 
-        visit(tree.root_node)
+        visit(tree.root_node())
         return edges
 
     def extract_imports(self, tree, source: str) -> list[EdgeInfo]:
@@ -133,11 +146,11 @@ class PHPParser(LanguageParser):
         fp = getattr(self, "_current_file_path", "")
 
         def visit(node):
-            if node.type == "use_declaration":
-                for child in node.children:
-                    if child.type == "use_class_name_list":
-                        for use_name in child.children:
-                            if use_name.type == "name":
+            if node.kind() == "use_declaration":
+                for child in _children(node):
+                    if child.kind() == "use_class_name_list":
+                        for use_name in _children(child):
+                            if use_name.kind() == "name":
                                 target = _extract_text(use_name, source)
                                 if target:
                                     edges.append(EdgeInfo(
@@ -146,7 +159,7 @@ class PHPParser(LanguageParser):
                                         target_qualified=target,
                                         file_path=fp,
                                     ))
-                    elif child.type == "qualified_name":
+                    elif child.kind() == "qualified_name":
                         target = _extract_text(child, source)
                         if target:
                             edges.append(EdgeInfo(
@@ -155,10 +168,10 @@ class PHPParser(LanguageParser):
                                 target_qualified=target,
                                 file_path=fp,
                             ))
-            for child in node.children:
+            for child in _children(node):
                 visit(child)
 
-        visit(tree.root_node)
+        visit(tree.root_node())
         return edges
 
     def extract_inheritance(self, tree, source: str) -> list[EdgeInfo]:
@@ -167,12 +180,12 @@ class PHPParser(LanguageParser):
         fp = getattr(self, "_current_file_path", "")
 
         def visit(node):
-            if node.type == "class_declaration":
+            if node.kind() == "class_declaration":
                 class_name = self._get_name(node, source)
-                for child in node.children:
-                    if child.type == "base_clause":
-                        for base in child.children:
-                            if base.type in ("qualified_name", "name"):
+                for child in _children(node):
+                    if child.kind() == "base_clause":
+                        for base in _children(child):
+                            if base.kind() in ("qualified_name", "name"):
                                 base_name = _extract_text(base, source)
                                 if base_name and class_name:
                                     edges.append(EdgeInfo(
@@ -181,9 +194,9 @@ class PHPParser(LanguageParser):
                                         target_qualified=base_name,
                                         file_path=fp,
                                     ))
-                    elif child.type == "class_implements":
-                        for iface in child.children:
-                            if iface.type in ("qualified_name", "name"):
+                    elif child.kind() == "class_implements":
+                        for iface in _children(child):
+                            if iface.kind() in ("qualified_name", "name"):
                                 iface_name = _extract_text(iface, source)
                                 if iface_name and class_name:
                                     edges.append(EdgeInfo(
@@ -192,10 +205,10 @@ class PHPParser(LanguageParser):
                                         target_qualified=iface_name,
                                         file_path=fp,
                                     ))
-            for child in node.children:
+            for child in _children(node):
                 visit(child)
 
-        visit(tree.root_node)
+        visit(tree.root_node())
         return edges
 
     def extract_types(self, tree, source: str) -> list[NodeInfo]:
@@ -204,41 +217,41 @@ class PHPParser(LanguageParser):
         fp = getattr(self, "_current_file_path", "")
 
         def visit(node):
-            if node.type == "class_declaration":
+            if node.kind() == "class_declaration":
                 name = self._get_name(node, source)
                 if name:
                     nodes.append(NodeInfo(
                         kind=NodeKind.CLASS,
                         name=name,
                         file_path=fp,
-                        range=SourceRange(node.start_point[0] + 1, node.end_point[0] + 1),
+                        range=SourceRange(_start_line(node), _end_line(node)),
                         language=self.language,
                     ))
-            elif node.type == "interface_declaration":
+            elif node.kind() == "interface_declaration":
                 name = self._get_name(node, source)
                 if name:
                     nodes.append(NodeInfo(
                         kind=NodeKind.INTERFACE,
                         name=name,
                         file_path=fp,
-                        range=SourceRange(node.start_point[0] + 1, node.end_point[0] + 1),
+                        range=SourceRange(_start_line(node), _end_line(node)),
                         language=self.language,
                     ))
-            elif node.type == "trait_declaration":
+            elif node.kind() == "trait_declaration":
                 name = self._get_name(node, source)
                 if name:
                     nodes.append(NodeInfo(
                         kind=NodeKind.CLASS,    # Traits map to CLASS for graph purposes
                         name=name,
                         file_path=fp,
-                        range=SourceRange(node.start_point[0] + 1, node.end_point[0] + 1),
+                        range=SourceRange(_start_line(node), _end_line(node)),
                         language=self.language,
                         extra={"is_trait": True},
                     ))
-            for child in node.children:
+            for child in _children(node):
                 visit(child)
 
-        visit(tree.root_node)
+        visit(tree.root_node())
         return nodes
 
     def extract_tests(self, tree, source: str) -> list[NodeInfo]:
@@ -247,56 +260,53 @@ class PHPParser(LanguageParser):
         fp = getattr(self, "_current_file_path", "")
 
         def visit(node, parent_class=None):
-            if node.type == "method_declaration":
+            if node.kind() == "method_declaration":
                 name = self._get_name(node, source)
                 if name and name.startswith("test"):
                     nodes.append(NodeInfo(
                         kind=NodeKind.TEST,
                         name=name,
                         file_path=fp,
-                        range=SourceRange(node.start_point[0] + 1, node.end_point[0] + 1),
+                        range=SourceRange(_start_line(node), _end_line(node)),
                         language=self.language,
                         parent_name=parent_class,
                         is_test=True,
                     ))
 
             new_class = parent_class
-            if node.type == "class_declaration":
+            if node.kind() == "class_declaration":
                 new_class = self._get_name(node, source)
 
-            for child in node.children:
+            for child in _children(node):
                 visit(child, new_class)
 
-        visit(tree.root_node)
+        visit(tree.root_node())
         return nodes
 
     # --- Helpers ---
 
     def _get_name(self, node, source: str) -> Optional[str]:
-        for child in node.children:
-            if child.type == "name":
+        for child in _children(node):
+            if child.kind() == "name":
                 return _extract_text(child, source)
         return None
 
     def _get_modifiers(self, node, source: str) -> list[str]:
         mods = []
-        for child in node.children:
-            if child.type in ("public", "protected", "private", "static", "abstract", "final"):
-                mods.append(child.type)
+        for child in _children(node):
+            if child.kind() in ("public", "protected", "private", "static", "abstract", "final"):
+                mods.append(child.kind())
         return mods
 
     def _get_call_target(self, node, source: str) -> Optional[str]:
-        if node.children:
-            first = node.children[0]
-            if first.type == "name":
+        if node.child_count() > 0:
+            first = node.child(0)
+            if first.kind() == "name":
                 return _extract_text(first, source)
-            if first.type == "variable_name":
+            if first.kind() == "variable_name":
                 return _extract_text(first, source)
         return None
 
 
 def _extract_text(node, source: str) -> str:
-    text = source[node.start_byte:node.end_byte]
-    if isinstance(text, bytes):
-        text = text.decode("utf-8")
-    return text.strip()
+    return source[node.start_byte():node.end_byte()].strip()

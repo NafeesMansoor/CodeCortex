@@ -14,7 +14,7 @@ import sys
 
 
 _USAGE = """\
-CodeCortex v1.0.0 — Adaptive Semantic Intelligence Engine
+CodeCortex v1.0.1 — Adaptive Semantic Intelligence Engine
 
 Usage:
   codecortex index     <dir> [options]       Build semantic graph index
@@ -44,7 +44,7 @@ def main(argv=None) -> int:
         return 0
 
     if args[0] in ("-v", "--version"):
-        print("CodeCortex 1.0.0")
+        print("CodeCortex 1.0.1")
         return 0
 
     subcommand = args[0]

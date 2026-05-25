@@ -275,7 +275,12 @@ codecortex.yaml             Default configuration
 ### Prerequisites
 
 - Python 3.10+
-- pip
+- pip / pip3
+
+> **macOS note:** Homebrew Python installs `pip3`, not `pip`. Use `pip3` or
+> `python3 -m pip` everywhere below. Homebrew Python 3.12+ also enforces
+> PEP 668 — global `pip install` is blocked. Always install inside a
+> virtualenv (shown below).
 
 ### Local Development Setup
 
@@ -284,7 +289,7 @@ codecortex.yaml             Default configuration
 git clone https://github.com/NafeesMansoor/codecortex.git
 cd codecortex
 
-# 2. Create a virtual environment
+# 2. Create a virtual environment (required on macOS Homebrew Python)
 python3 -m venv .venv
 source .venv/bin/activate         # Windows: .venv\Scripts\activate
 
@@ -294,10 +299,13 @@ pip install -r requirements.txt
 # 4. Install in editable mode
 pip install -e .
 
-# 5. Optional: real embeddings + full semantic stack
+# 5. Install tree-sitter-language-pack (required for PHP/JS/TS parsing)
+pip install tree-sitter-language-pack
+
+# 6. Optional: real embeddings + full semantic stack
 pip install -e ".[all]"
 
-# 6. Verify
+# 7. Verify
 pytest tests/ --ignore=tests/benchmarks
 codecortex --help
 ```
@@ -346,7 +354,16 @@ codecortex index . --save-snapshot .codecortex/graph.json
 
 # Limit languages
 codecortex index . --languages py ts
+
+# Exclude vendor/node_modules (recommended for Laravel / Node projects)
+codecortex index ./app --languages php
+# or exclude multiple directories explicitly:
+codecortex index . --exclude vendor node_modules storage bootstrap
 ```
+
+> **Laravel / PHP projects:** always target `./app` or pass `--exclude vendor`
+> to avoid indexing 8000+ Composer package files. The default `codecortex.yaml`
+> ships with `vendor`, `node_modules`, `storage`, and `bootstrap/cache` pre-excluded.
 
 ### Query
 
@@ -454,6 +471,14 @@ codecortex:
 
   # Centrality
   centrality_ranking: true
+
+  # Exclude third-party directories from indexing
+  exclude_paths:
+    - vendor
+    - node_modules
+    - storage
+    - bootstrap/cache
+    - .git
 ```
 
 ---
@@ -578,8 +603,11 @@ python -c "import pstats; p=pstats.Stats('profile.out'); p.sort_stats('cumulativ
 **No nodes in visualization / empty graph**
 Ensure the target directory contains supported source files (`.py`, `.js`, `.ts`, `.php`). Check `CODECORTEX_LOG_LEVEL=DEBUG codecortex visualize .` for parser errors.
 
-**Clustering produces 0 clusters**
-HDBSCAN requires real (non-stub) embeddings. Set `embedding_backend: local` and install sentence-transformers.
+**PHP files: 8000+ files indexed, 0 nodes** (Laravel / Composer)
+The indexer is walking `vendor/`. Run `codecortex index ./app --languages php` or add `exclude_paths: [vendor, node_modules]` to `codecortex.yaml`.
+
+**Clustering produces 0 clusters / "Clustering skipped" message**
+HDBSCAN requires real (non-stub) embeddings. Set `embedding_backend: local` and install the optional extras: `pip install scikit-learn hdbscan umap-learn`. With stub embeddings the clustering is automatically skipped — this is expected behavior.
 
 **Slow CPG build (>10s for 60 files)**
 Enable graph pruning and on-demand CFG/DFG:
@@ -591,6 +619,12 @@ on_demand_dfg: true
 
 **Browser does not open**
 Use `--no-open` and navigate manually to `http://localhost:7979`.
+
+**`pip: command not found` on macOS**
+Use `pip3` or `python3 -m pip`. macOS Homebrew Python does not symlink `pip`.
+
+**`error: externally-managed-environment` (PEP 668)**
+Create a virtualenv first: `python3 -m venv .venv && source .venv/bin/activate`, then run `pip install`.
 
 ---
 

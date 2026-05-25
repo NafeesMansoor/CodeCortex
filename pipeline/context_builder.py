@@ -112,10 +112,11 @@ class CodeCortexPipeline:
         path: str | Path,
         config: Optional[PipelineConfig] = None,
         languages: Optional[list[str]] = None,
+        exclude: Optional[list[str]] = None,
     ) -> "CodeCortexPipeline":
         """Build the full pipeline from a source directory."""
         pipeline = cls(config)
-        pipeline.build(Path(path), languages=languages)
+        pipeline.build(Path(path), languages=languages, exclude=exclude)
         return pipeline
 
     # ------------------------------------------------------------------
@@ -126,13 +127,14 @@ class CodeCortexPipeline:
         self,
         root: Path,
         languages: Optional[list[str]] = None,
+        exclude: Optional[list[str]] = None,
     ) -> PipelineStats:
         """Run all phases over source files under root."""
         stats = PipelineStats()
         t_start = time.perf_counter()
 
         # Phase 1+2+3: Parse → CPG (CFG/DFG deferred when on_demand is set)
-        stats.files_parsed, stats.parse_errors, self._store = self._build_cpg(root, languages)
+        stats.files_parsed, stats.parse_errors, self._store = self._build_cpg(root, languages, exclude)
 
         # Graph pruning — compact semantic graph
         if self.config.use_graph_pruning:
@@ -174,13 +176,21 @@ class CodeCortexPipeline:
         logger.info("CodeCortex pipeline built: %s", stats)
         return stats
 
-    def _build_cpg(self, root: Path, languages: Optional[list[str]]) -> tuple[int, int, object]:
+    def _build_cpg(
+        self,
+        root: Path,
+        languages: Optional[list[str]],
+        exclude: Optional[list[str]] = None,
+    ) -> tuple[int, int, object]:
         from graph.graph_store import GraphStore
         from graph.cpg_builder import CPGBuilder
         from core.parsers.python_parser import PythonParser
 
         store = GraphStore(":memory:")
         cfg = self.config
+
+        # Normalise exclude list: strip trailing slashes for consistent matching
+        exclude_set = {p.rstrip("/\\") for p in (exclude or [])}
 
         # Tier 1 build: skip CFG/DFG when on-demand expansion is requested
         effective_cfg = cfg.enable_cfg and not cfg.on_demand_cfg
@@ -210,6 +220,11 @@ class CodeCortexPipeline:
             if languages and ext not in languages:
                 continue
             for file_path in root.rglob(f"*.{ext}"):
+                # Skip files whose path contains any excluded directory name
+                if exclude_set and any(
+                    part in exclude_set for part in file_path.parts
+                ):
+                    continue
                 try:
                     source = file_path.read_text(encoding="utf-8", errors="replace")
                     result = parser.parse(source, str(file_path))

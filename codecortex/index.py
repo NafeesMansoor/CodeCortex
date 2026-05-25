@@ -82,6 +82,13 @@ def main(argv=None) -> int:
         default=None,
         help="Limit to specific languages: py js ts php",
     )
+    parser.add_argument(
+        "--exclude",
+        nargs="+",
+        metavar="PATH",
+        default=None,
+        help="Directory names or paths to exclude (e.g. vendor node_modules storage)",
+    )
     parser.add_argument("--quiet", action="store_true")
 
     args = parser.parse_args(argv)
@@ -121,9 +128,14 @@ def main(argv=None) -> int:
 
     from pipeline.context_builder import CodeCortexPipeline
 
+    # Merge CLI --exclude with any exclude_paths from YAML
+    exclude = list(args.exclude or [])
+    if hasattr(cc_config, "exclude_paths") and cc_config.exclude_paths:
+        exclude = list({*exclude, *cc_config.exclude_paths})
+
     t0 = time.perf_counter()
     pipeline = CodeCortexPipeline(pipeline_cfg)
-    stats = pipeline.build(target, languages=args.languages)
+    stats = pipeline.build(target, languages=args.languages, exclude=exclude or None)
     elapsed = time.perf_counter() - t0
 
     if not args.quiet:

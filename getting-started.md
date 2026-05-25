@@ -4,16 +4,28 @@
 
 ### Option A — Install from local clone (recommended for development)
 
+> **macOS note:** Homebrew Python installs `pip3`, not `pip`. Use `pip3` or
+> `python3 -m pip` everywhere below. Homebrew Python 3.12+ also enforces
+> PEP 668 — global `pip install` is blocked. Always install inside a
+> virtualenv (shown below).
+
 ```bash
 # Clone into your project directory (or any location)
 git clone https://github.com/NafeesMansoor/CodeCortex.git codecortex
 cd codecortex
 
-# Install core dependencies into the active virtual environment
+# Create a virtualenv (required on macOS Homebrew Python)
+python3 -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+
+# Install core dependencies into the virtual environment
 pip install -r requirements.txt
 
 # Install the package in editable mode (registers `codecortex` and `cx` CLI)
 pip install -e .
+
+# Install tree-sitter-language-pack (required for PHP/JS/TS parsing)
+pip install tree-sitter-language-pack
 
 # Verify
 codecortex --help
@@ -93,6 +105,12 @@ codecortex index . --save-snapshot .codecortex/graph.json
 # Limit to specific languages (py / js / ts / php)
 codecortex index . --languages py ts
 
+# Laravel / PHP: index only app/ to avoid 8000+ vendor files
+codecortex index ./app --languages php --save-snapshot .codecortex/graph.json
+
+# Exclude vendor/node_modules explicitly (alternative to targeting app/)
+codecortex index . --languages php --exclude vendor node_modules storage bootstrap
+
 # Full recommended build for medium projects
 codecortex index . \
   --mode cpg \
@@ -104,6 +122,9 @@ codecortex index . \
 # Debug mode to diagnose parser errors
 CODECORTEX_LOG_LEVEL=DEBUG codecortex index .
 ```
+
+> **Tip:** Add `exclude_paths` to `codecortex.yaml` so you never need to pass
+> `--exclude` on every run (see Section 6).
 
 ---
 
@@ -187,6 +208,15 @@ codecortex:
 
   # Centrality
   centrality_ranking: true
+
+  # Exclude third-party and generated directories from indexing.
+  # Prevents vendor/ and node_modules/ from polluting the graph.
+  exclude_paths:
+    - vendor
+    - node_modules
+    - storage
+    - bootstrap/cache
+    - .git
 ```
 
 ### Lightweight mode (fastest build, structural only)
@@ -373,8 +403,12 @@ Snapshot: `.codecortex/graph.json` — rebuild with:
 | Symptom | Fix |
 |---------|-----|
 | Empty graph / no nodes in visualizer | Check files exist for supported languages (`.py .js .ts .php`). Run with `CODECORTEX_LOG_LEVEL=DEBUG`. |
+| PHP: 8000+ files, 0 nodes (Laravel) | Indexer is walking `vendor/`. Run `codecortex index ./app --languages php` or set `exclude_paths: [vendor]` in `codecortex.yaml`. |
+| "Clustering skipped" message | Expected when `scikit-learn`/`hdbscan` are not installed. Install with `pip install scikit-learn hdbscan umap-learn` to enable. |
 | 0 clusters produced | HDBSCAN needs real embeddings. Set `embedding_backend: local` and `pip install sentence-transformers`. |
 | Slow CPG build (>10s for 60 files) | Enable `use_graph_pruning: true`, `on_demand_cfg: true`, `on_demand_dfg: true` in `codecortex.yaml`. |
 | Browser doesn't open | Use `--no-open` and navigate to `http://localhost:7979` manually. |
 | `codecortex: command not found` | Install with `pip install -e .` from inside the cloned repo directory. |
+| `pip: command not found` on macOS | Use `pip3` or `python3 -m pip`. Homebrew Python does not symlink `pip`. |
+| `error: externally-managed-environment` | Create a virtualenv first: `python3 -m venv .venv && source .venv/bin/activate`. |
 | PHP files produce no nodes | `tree-sitter-language-pack` is required for the PHP grammar: `pip install tree-sitter-language-pack`. |
