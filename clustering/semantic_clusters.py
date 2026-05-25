@@ -123,7 +123,7 @@ class SemanticClusterer:
         except ImportError:
             pass
         try:
-            logger.warning("hdbscan/umap not available, falling back to KMeans")
+            logger.debug("hdbscan/umap not available, trying KMeans")
             return self._fit_kmeans(vectors)
         except ImportError:
             logger.warning(

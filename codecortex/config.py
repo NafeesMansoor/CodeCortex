@@ -54,7 +54,7 @@ class CodeCortexConfig:
     token_budget: int = 4000
     min_semantic_score: float = 0.0
 
-    exclude_paths: list = field(default_factory=list)
+    exclude_paths: list[str] = field(default_factory=list)
 
     def to_pipeline_config(self):
         from pipeline.context_builder import PipelineConfig
@@ -73,6 +73,7 @@ class CodeCortexConfig:
             retrieval_top_k=self.retrieval_top_k,
             retrieval_token_budget=self.token_budget,
             retrieval_min_semantic=self.min_semantic_score,
+            exclude_paths=self.exclude_paths,
         )
 
 

@@ -7,6 +7,9 @@ Extracts:
   - Interfaces and traits
   - Use statements (imports)
   - Inheritance / interface implementation
+
+Updated for tree-sitter-language-pack new API where all node attributes
+are callable methods: node.kind(), node.child_count(), node.start_byte(), etc.
 """
 
 from __future__ import annotations
@@ -20,9 +23,13 @@ from core.types import EdgeInfo, EdgeKind, NodeInfo, NodeKind, ParseResult, Sour
 logger = logging.getLogger(__name__)
 
 
-# tree-sitter-language-pack new callable API helpers
 def _children(node) -> list:
     return [node.child(i) for i in range(node.child_count())]
+
+
+def _extract_text(node, source: str) -> str:
+    text = source[node.start_byte():node.end_byte()]
+    return text.strip()
 
 
 def _start_line(node) -> int:
@@ -46,15 +53,16 @@ class PHPParser(LanguageParser):
             self._current_file_path = file_path
             parser = tslp.get_parser("php")
             tree = parser.parse(source)
+            root = tree.root_node()
 
-            nodes = self.extract_definitions(tree, source)
-            nodes.extend(self.extract_types(tree, source))
-            nodes.extend(self.extract_tests(tree, source))
+            nodes = self.extract_definitions(root, source)
+            nodes.extend(self.extract_types(root, source))
+            nodes.extend(self.extract_tests(root, source))
 
             edges = []
-            edges.extend(self.extract_calls(tree, source))
-            edges.extend(self.extract_imports(tree, source))
-            edges.extend(self.extract_inheritance(tree, source))
+            edges.extend(self.extract_calls(root, source))
+            edges.extend(self.extract_imports(root, source))
+            edges.extend(self.extract_inheritance(root, source))
 
             return ParseResult(
                 language=self.language,
@@ -70,13 +78,13 @@ class PHPParser(LanguageParser):
                 errors=[str(e)],
             )
 
-    def extract_definitions(self, tree, source: str) -> list[NodeInfo]:
-        """Extract function and method definitions."""
+    def extract_definitions(self, root, source: str) -> list[NodeInfo]:
         nodes = []
-        fp = getattr(self, "_current_file_path", "")
+        fp = self._current_file_path
 
         def visit(node, parent_class=None):
-            if node.kind() == "function_definition":
+            kind = node.kind()
+            if kind == "function_definition":
                 name = self._get_name(node, source)
                 if name:
                     nodes.append(NodeInfo(
@@ -88,7 +96,7 @@ class PHPParser(LanguageParser):
                         parent_name=parent_class,
                     ))
 
-            if node.kind() == "method_declaration":
+            if kind == "method_declaration":
                 name = self._get_name(node, source)
                 if name:
                     modifiers = self._get_modifiers(node, source)
@@ -105,22 +113,22 @@ class PHPParser(LanguageParser):
                     ))
 
             new_class = parent_class
-            if node.kind() == "class_declaration":
+            if kind == "class_declaration":
                 new_class = self._get_name(node, source)
 
             for child in _children(node):
                 visit(child, new_class)
 
-        visit(tree.root_node())
+        visit(root)
         return nodes
 
-    def extract_calls(self, tree, source: str) -> list[EdgeInfo]:
-        """Extract method / function calls."""
+    def extract_calls(self, root, source: str) -> list[EdgeInfo]:
         edges = []
-        fp = getattr(self, "_current_file_path", "")
+        fp = self._current_file_path
 
         def visit(node, enclosing=None):
-            if node.kind() in ("function_call_expression", "member_call_expression"):
+            kind = node.kind()
+            if kind in ("function_call_expression", "member_call_expression"):
                 target = self._get_call_target(node, source)
                 if target and enclosing:
                     edges.append(EdgeInfo(
@@ -131,19 +139,18 @@ class PHPParser(LanguageParser):
                     ))
 
             new_enc = enclosing
-            if node.kind() in ("function_definition", "method_declaration"):
+            if kind in ("function_definition", "method_declaration"):
                 new_enc = self._get_name(node, source) or enclosing
 
             for child in _children(node):
                 visit(child, new_enc)
 
-        visit(tree.root_node())
+        visit(root)
         return edges
 
-    def extract_imports(self, tree, source: str) -> list[EdgeInfo]:
-        """Extract use / require / include statements."""
+    def extract_imports(self, root, source: str) -> list[EdgeInfo]:
         edges = []
-        fp = getattr(self, "_current_file_path", "")
+        fp = self._current_file_path
 
         def visit(node):
             if node.kind() == "use_declaration":
@@ -171,13 +178,12 @@ class PHPParser(LanguageParser):
             for child in _children(node):
                 visit(child)
 
-        visit(tree.root_node())
+        visit(root)
         return edges
 
-    def extract_inheritance(self, tree, source: str) -> list[EdgeInfo]:
-        """Extract extends and implements relationships."""
+    def extract_inheritance(self, root, source: str) -> list[EdgeInfo]:
         edges = []
-        fp = getattr(self, "_current_file_path", "")
+        fp = self._current_file_path
 
         def visit(node):
             if node.kind() == "class_declaration":
@@ -208,16 +214,16 @@ class PHPParser(LanguageParser):
             for child in _children(node):
                 visit(child)
 
-        visit(tree.root_node())
+        visit(root)
         return edges
 
-    def extract_types(self, tree, source: str) -> list[NodeInfo]:
-        """Extract class, interface, and trait declarations."""
+    def extract_types(self, root, source: str) -> list[NodeInfo]:
         nodes = []
-        fp = getattr(self, "_current_file_path", "")
+        fp = self._current_file_path
 
         def visit(node):
-            if node.kind() == "class_declaration":
+            kind = node.kind()
+            if kind == "class_declaration":
                 name = self._get_name(node, source)
                 if name:
                     nodes.append(NodeInfo(
@@ -227,7 +233,7 @@ class PHPParser(LanguageParser):
                         range=SourceRange(_start_line(node), _end_line(node)),
                         language=self.language,
                     ))
-            elif node.kind() == "interface_declaration":
+            elif kind == "interface_declaration":
                 name = self._get_name(node, source)
                 if name:
                     nodes.append(NodeInfo(
@@ -237,11 +243,11 @@ class PHPParser(LanguageParser):
                         range=SourceRange(_start_line(node), _end_line(node)),
                         language=self.language,
                     ))
-            elif node.kind() == "trait_declaration":
+            elif kind == "trait_declaration":
                 name = self._get_name(node, source)
                 if name:
                     nodes.append(NodeInfo(
-                        kind=NodeKind.CLASS,    # Traits map to CLASS for graph purposes
+                        kind=NodeKind.CLASS,
                         name=name,
                         file_path=fp,
                         range=SourceRange(_start_line(node), _end_line(node)),
@@ -251,13 +257,12 @@ class PHPParser(LanguageParser):
             for child in _children(node):
                 visit(child)
 
-        visit(tree.root_node())
+        visit(root)
         return nodes
 
-    def extract_tests(self, tree, source: str) -> list[NodeInfo]:
-        """Extract PHPUnit test methods."""
+    def extract_tests(self, root, source: str) -> list[NodeInfo]:
         nodes = []
-        fp = getattr(self, "_current_file_path", "")
+        fp = self._current_file_path
 
         def visit(node, parent_class=None):
             if node.kind() == "method_declaration":
@@ -280,10 +285,8 @@ class PHPParser(LanguageParser):
             for child in _children(node):
                 visit(child, new_class)
 
-        visit(tree.root_node())
+        visit(root)
         return nodes
-
-    # --- Helpers ---
 
     def _get_name(self, node, source: str) -> Optional[str]:
         for child in _children(node):
@@ -299,14 +302,9 @@ class PHPParser(LanguageParser):
         return mods
 
     def _get_call_target(self, node, source: str) -> Optional[str]:
-        if node.child_count() > 0:
-            first = node.child(0)
-            if first.kind() == "name":
-                return _extract_text(first, source)
-            if first.kind() == "variable_name":
+        children = _children(node)
+        if children:
+            first = children[0]
+            if first.kind() in ("name", "variable_name"):
                 return _extract_text(first, source)
         return None
-
-
-def _extract_text(node, source: str) -> str:
-    return source[node.start_byte():node.end_byte()].strip()

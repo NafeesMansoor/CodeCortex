@@ -62,6 +62,9 @@ class PipelineConfig:
     retrieval_token_budget: int = 4000
     retrieval_min_semantic: float = 0.0
 
+    # Paths to exclude during file walking (relative to index root, e.g. "vendor/")
+    exclude_paths: list[str] = field(default_factory=list)
+
 
 @dataclass
 class PipelineStats:
@@ -112,11 +115,11 @@ class CodeCortexPipeline:
         path: str | Path,
         config: Optional[PipelineConfig] = None,
         languages: Optional[list[str]] = None,
-        exclude: Optional[list[str]] = None,
+        exclude_paths: Optional[list[str]] = None,
     ) -> "CodeCortexPipeline":
         """Build the full pipeline from a source directory."""
         pipeline = cls(config)
-        pipeline.build(Path(path), languages=languages, exclude=exclude)
+        pipeline.build(Path(path), languages=languages, exclude_paths=exclude_paths)
         return pipeline
 
     # ------------------------------------------------------------------
@@ -127,14 +130,16 @@ class CodeCortexPipeline:
         self,
         root: Path,
         languages: Optional[list[str]] = None,
-        exclude: Optional[list[str]] = None,
+        exclude_paths: Optional[list[str]] = None,
     ) -> PipelineStats:
         """Run all phases over source files under root."""
         stats = PipelineStats()
         t_start = time.perf_counter()
 
+        effective_excludes = exclude_paths or self.config.exclude_paths
+
         # Phase 1+2+3: Parse → CPG (CFG/DFG deferred when on_demand is set)
-        stats.files_parsed, stats.parse_errors, self._store = self._build_cpg(root, languages, exclude)
+        stats.files_parsed, stats.parse_errors, self._store = self._build_cpg(root, languages, effective_excludes)
 
         # Graph pruning — compact semantic graph
         if self.config.use_graph_pruning:
@@ -176,12 +181,7 @@ class CodeCortexPipeline:
         logger.info("CodeCortex pipeline built: %s", stats)
         return stats
 
-    def _build_cpg(
-        self,
-        root: Path,
-        languages: Optional[list[str]],
-        exclude: Optional[list[str]] = None,
-    ) -> tuple[int, int, object]:
+    def _build_cpg(self, root: Path, languages: Optional[list[str]], exclude_paths: Optional[list[str]] = None) -> tuple[int, int, object]:
         from graph.graph_store import GraphStore
         from graph.cpg_builder import CPGBuilder
         from core.parsers.python_parser import PythonParser
@@ -190,8 +190,6 @@ class CodeCortexPipeline:
         cfg = self.config
 
         # Normalise exclude list: strip trailing slashes for consistent matching
-        exclude_set = {p.rstrip("/\\") for p in (exclude or [])}
-
         # Tier 1 build: skip CFG/DFG when on-demand expansion is requested
         effective_cfg = cfg.enable_cfg and not cfg.on_demand_cfg
         effective_dfg = cfg.enable_dfg and not cfg.on_demand_dfg
@@ -213,6 +211,8 @@ class CodeCortexPipeline:
         except Exception:
             pass
 
+        excluded_roots = [root / p.rstrip("/") for p in (exclude_paths or [])]
+
         files = 0
         errors = 0
         self._indexed_files = []
@@ -220,10 +220,7 @@ class CodeCortexPipeline:
             if languages and ext not in languages:
                 continue
             for file_path in root.rglob(f"*.{ext}"):
-                # Skip files whose path contains any excluded directory name
-                if exclude_set and any(
-                    part in exclude_set for part in file_path.parts
-                ):
+                if any(file_path.is_relative_to(exc) for exc in excluded_roots):
                     continue
                 try:
                     source = file_path.read_text(encoding="utf-8", errors="replace")
@@ -311,6 +308,8 @@ class CodeCortexPipeline:
             ClusterLabeler().label_all(self._cluster_result.clusters)
             stats.clusters = len(self._cluster_result.clusters)
             stats.noise_nodes = len(self._cluster_result.noise_members)
+        except ImportError as e:
+            logger.warning("Clustering skipped — install scikit-learn for KMeans or hdbscan/umap-learn for HDBSCAN: %s", e)
         except Exception as e:
             logger.warning("Clustering failed: %s", e)
 

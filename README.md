@@ -2,7 +2,7 @@
 
 **Adaptive semantic intelligence engine for large-scale code understanding.**
 
-> Version 1.0.0 — Production Release
+> Version 1.0.1
 
 CodeCortex transforms source code into a living, queryable semantic graph — combining Code Property Graphs, real embedding models, approximate nearest-neighbor retrieval, intelligent graph traversal, and an interactive human-facing visualization layer into a unified platform purpose-built for production-scale repositories.
 
@@ -277,10 +277,9 @@ codecortex.yaml             Default configuration
 - Python 3.10+
 - pip / pip3
 
-> **macOS note:** Homebrew Python installs `pip3`, not `pip`. Use `pip3` or
-> `python3 -m pip` everywhere below. Homebrew Python 3.12+ also enforces
-> PEP 668 — global `pip install` is blocked. Always install inside a
-> virtualenv (shown below).
+> **macOS note:** Homebrew Python enforces PEP 668 and blocks global `pip install`.
+> Always install into a virtual environment (step 2 below).
+> If `pip` is not found, use `pip3` or `python3 -m pip` instead.
 
 ### Local Development Setup
 
@@ -355,10 +354,8 @@ codecortex index . --save-snapshot .codecortex/graph.json
 # Limit languages
 codecortex index . --languages py ts
 
-# Exclude vendor/node_modules (recommended for Laravel / Node projects)
-codecortex index ./app --languages php
-# or exclude multiple directories explicitly:
-codecortex index . --exclude vendor node_modules storage bootstrap
+# Exclude third-party directories (e.g. Laravel / Node projects)
+codecortex index . --languages php --exclude vendor/ node_modules/ storage/
 ```
 
 > **Laravel / PHP projects:** always target `./app` or pass `--exclude vendor`
@@ -472,13 +469,13 @@ codecortex:
   # Centrality
   centrality_ranking: true
 
-  # Exclude third-party directories from indexing
+  # Paths excluded from indexing (relative to the indexed root)
+  # Useful for Laravel/Node projects with large vendor/node_modules trees
   exclude_paths:
-    - vendor
-    - node_modules
-    - storage
-    - bootstrap/cache
-    - .git
+    - vendor/
+    - node_modules/
+    - storage/
+    - bootstrap/cache/
 ```
 
 ---
@@ -603,11 +600,22 @@ python -c "import pstats; p=pstats.Stats('profile.out'); p.sort_stats('cumulativ
 **No nodes in visualization / empty graph**
 Ensure the target directory contains supported source files (`.py`, `.js`, `.ts`, `.php`). Check `CODECORTEX_LOG_LEVEL=DEBUG codecortex visualize .` for parser errors.
 
-**PHP files: 8000+ files indexed, 0 nodes** (Laravel / Composer)
-The indexer is walking `vendor/`. Run `codecortex index ./app --languages php` or add `exclude_paths: [vendor, node_modules]` to `codecortex.yaml`.
+**8000+ files indexed / graph polluted with framework internals (Laravel, Node)**
+You are likely indexing `vendor/` or `node_modules/`. Target the application directory directly or use `--exclude`:
+```bash
+codecortex index /path/to/laravel --languages php --exclude vendor/ node_modules/
+```
+Or add `exclude_paths` to `codecortex.yaml` (see Configuration above).
 
-**Clustering produces 0 clusters / "Clustering skipped" message**
-HDBSCAN requires real (non-stub) embeddings. Set `embedding_backend: local` and install the optional extras: `pip install scikit-learn hdbscan umap-learn`. With stub embeddings the clustering is automatically skipped — this is expected behavior.
+**Clustering skipped — scikit-learn / hdbscan not installed**
+Install the optional clustering extras:
+```bash
+pip install scikit-learn hdbscan umap-learn
+```
+HDBSCAN also requires real (non-stub) embeddings. Set `embedding_backend: local`.
+
+**Clustering produces 0 clusters**
+HDBSCAN requires real (non-stub) embeddings. Set `embedding_backend: local` and install sentence-transformers.
 
 **Slow CPG build (>10s for 60 files)**
 Enable graph pruning and on-demand CFG/DFG:
