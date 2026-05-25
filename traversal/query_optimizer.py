@@ -13,7 +13,7 @@ import logging
 from dataclasses import dataclass, replace
 from typing import Optional
 
-from core.types import EdgeKind, NodeKind, TraversalConfig
+from core.types import EdgeKind, TraversalConfig
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +22,9 @@ logger = logging.getLogger(__name__)
 class OptimizationHints:
     """Caller-provided hints to guide optimization decisions."""
 
-    token_budget: Optional[int] = None     # Max tokens for resulting context
-    avg_node_tokens: int = 150             # Estimated tokens per node
-    query_intent: Optional[str] = None    # "impact" | "callers" | "imports" | None
+    token_budget: Optional[int] = None  # Max tokens for resulting context
+    avg_node_tokens: int = 150  # Estimated tokens per node
+    query_intent: Optional[str] = None  # "impact" | "callers" | "imports" | None
     cluster_ids: Optional[list[int]] = None  # Restrict to these cluster IDs
 
 
@@ -100,9 +100,7 @@ class QueryOptimizer:
         }
         intent = hints.query_intent
         if intent and intent in intent_edge_map:
-            merged = list(
-                set(intent_edge_map[intent]) | set(config.edge_filter or [])
-            )
+            merged = list(set(intent_edge_map[intent]) | set(config.edge_filter or []))
             logger.debug("Applying intent filter '%s': edges=%s", intent, merged)
             return replace(config, edge_filter=merged)
         return config

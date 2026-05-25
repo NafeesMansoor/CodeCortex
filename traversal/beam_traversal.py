@@ -21,7 +21,6 @@ import heapq
 import logging
 import time
 from dataclasses import dataclass, field
-from functools import lru_cache
 from typing import Optional
 
 from core.types import EdgeKind
@@ -144,7 +143,7 @@ class BeamTraversal:
                 nbr_score = self._score_node(
                     neighbor, query_vec, semantic_weight, structural_weight
                 )
-                combined = (score * 0.5 + nbr_score * 0.5) * edge_w * (self.depth_decay ** depth)
+                combined = (score * 0.5 + nbr_score * 0.5) * edge_w * (self.depth_decay**depth)
                 candidates.append((-combined, neighbor, depth + 1, path + [neighbor]))
 
             # Beam pruning: keep only top beam_width candidates per expansion
@@ -155,7 +154,9 @@ class BeamTraversal:
         results.sort(key=lambda x: -x.score)
         elapsed = (time.perf_counter() - t0) * 1000
 
-        result = BeamResult(nodes=results[: self.beam_width * max_depth], elapsed_ms=round(elapsed, 2))
+        result = BeamResult(
+            nodes=results[: self.beam_width * max_depth], elapsed_ms=round(elapsed, 2)
+        )
         self._cache[cache_key] = result
         return result
 
@@ -184,6 +185,7 @@ class BeamTraversal:
             return struct_w * structural
 
         import numpy as np
+
         vec = np.array(item.vector, dtype="float32")
         qv = np.array(query_vec, dtype="float32")
         norm_v = float(np.linalg.norm(vec))

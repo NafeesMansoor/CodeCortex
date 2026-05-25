@@ -66,14 +66,11 @@ class LouvainClusterer:
 
     def cluster(self, store) -> LouvainResult:
         """Run Louvain on the graph store. Returns LouvainResult."""
-        import networkx as nx
 
         try:
             import community as community_louvain
         except ImportError:
-            raise RuntimeError(
-                "python-louvain is required. Install: pip install python-louvain"
-            )
+            raise RuntimeError("python-louvain is required. Install: pip install python-louvain")
 
         G = self._build_graph(store)
         if G.number_of_nodes() < 2:
@@ -106,16 +103,14 @@ class LouvainClusterer:
             for m in members:
                 node_to_cluster[m] = new_id
 
-        logger.info(
-            "Louvain: %d communities, modularity=%.4f", len(clusters), modularity
-        )
+        logger.info("Louvain: %d communities, modularity=%.4f", len(clusters), modularity)
         return LouvainResult(
             clusters=clusters,
             modularity=modularity,
             node_to_cluster=node_to_cluster,
         )
 
-    def _build_graph(self, store) -> "nx.Graph":
+    def _build_graph(self, store):
         import networkx as nx
 
         G = nx.Graph()
@@ -144,6 +139,7 @@ class LouvainClusterer:
             if node and node.file_path:
                 # Use the stem of the filename as a label candidate
                 import os
+
                 stem = os.path.splitext(os.path.basename(node.file_path))[0]
                 file_counts[stem] += 1
 

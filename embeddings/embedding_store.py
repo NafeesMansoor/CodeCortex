@@ -6,7 +6,6 @@ metadata filtering. Supports incremental updates and re-indexing.
 
 from __future__ import annotations
 
-import json
 import logging
 import math
 from dataclasses import dataclass, field
@@ -22,7 +21,7 @@ class EmbeddedItem:
     """An embedded code entity."""
 
     qualified_name: str
-    text: str                         # Source text that was embedded
+    text: str  # Source text that was embedded
     vector: list[float]
     metadata: dict = field(default_factory=dict)
 
@@ -32,7 +31,7 @@ class SearchResult:
     """Result from similarity search."""
 
     qualified_name: str
-    score: float                      # Cosine similarity [0, 1]
+    score: float  # Cosine similarity [0, 1]
     metadata: dict = field(default_factory=dict)
 
 
@@ -53,7 +52,7 @@ class EmbeddingStore:
         self.provider = provider
         self._use_faiss = use_faiss
         self._items: dict[str, EmbeddedItem] = {}  # qualified_name → item
-        self._index = None   # FAISS index (lazy init)
+        self._index = None  # FAISS index (lazy init)
         self._index_dirty = False  # Index needs rebuild
 
     def add(
@@ -194,11 +193,13 @@ class EmbeddingStore:
             name = names[idx]
             if name not in self._items:
                 continue
-            results.append(SearchResult(
-                qualified_name=name,
-                score=score,
-                metadata=self._items[name].metadata,
-            ))
+            results.append(
+                SearchResult(
+                    qualified_name=name,
+                    score=score,
+                    metadata=self._items[name].metadata,
+                )
+            )
         return results
 
     def _rebuild_faiss_index(self, faiss, np) -> None:
@@ -212,10 +213,10 @@ class EmbeddingStore:
         n = len(items)
         if n >= 100:
             # HNSW: O(log n) ANN search, sub-5ms for collections up to ~1M
-            M = 32                       # graph connectivity — higher = better recall, more memory
+            M = 32  # graph connectivity — higher = better recall, more memory
             index = faiss.IndexHNSWFlat(dim, M)
-            index.hnsw.efConstruction = 200   # quality of graph build
-            index.hnsw.efSearch = 64          # quality of search (trade recall vs speed)
+            index.hnsw.efConstruction = 200  # quality of graph build
+            index.hnsw.efSearch = 64  # quality of search (trade recall vs speed)
             index.add(vectors)
             self._index_type = "hnsw"
         else:
@@ -230,7 +231,9 @@ class EmbeddingStore:
         self._index_dirty = False
         logger.debug(
             "Rebuilt FAISS %s index: %d vectors (dim=%d)",
-            getattr(self, "_index_type", "?"), n, dim,
+            getattr(self, "_index_type", "?"),
+            n,
+            dim,
         )
 
     def size(self) -> int:

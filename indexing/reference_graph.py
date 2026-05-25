@@ -18,9 +18,6 @@ from __future__ import annotations
 
 import contextlib
 import sqlite3
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Optional
 
 from indexing.indexing_provider import SymbolOccurrence
 
@@ -72,9 +69,7 @@ class ReferenceGraph:
     def remove_file(self, file_path: str) -> None:
         """Remove all occurrences originating from file_path (for incremental updates)."""
         with self._tx():
-            self._conn.execute(
-                "DELETE FROM occurrences WHERE file_path = ?", (file_path,)
-            )
+            self._conn.execute("DELETE FROM occurrences WHERE file_path = ?", (file_path,))
 
     # ------------------------------------------------------------------
     # Read
@@ -91,8 +86,7 @@ class ReferenceGraph:
     def references_in_file(self, file_path: str) -> list[SymbolOccurrence]:
         """All occurrences recorded for a specific file."""
         rows = self._conn.execute(
-            "SELECT symbol, file_path, line, col, role FROM occurrences "
-            "WHERE file_path = ?",
+            "SELECT symbol, file_path, line, col, role FROM occurrences WHERE file_path = ?",
             (file_path,),
         ).fetchall()
         return [_row_to_occ(r) for r in rows]
@@ -100,8 +94,7 @@ class ReferenceGraph:
     def callers_of(self, symbol: str) -> list[str]:
         """Return file paths of all files that reference symbol."""
         rows = self._conn.execute(
-            "SELECT DISTINCT file_path FROM occurrences "
-            "WHERE symbol = ? AND role = 'reference'",
+            "SELECT DISTINCT file_path FROM occurrences WHERE symbol = ? AND role = 'reference'",
             (symbol,),
         ).fetchall()
         return [r[0] for r in rows]
@@ -118,9 +111,7 @@ class ReferenceGraph:
         return self._conn.execute("SELECT COUNT(*) FROM occurrences").fetchone()[0]
 
     def symbols(self) -> list[str]:
-        rows = self._conn.execute(
-            "SELECT DISTINCT symbol FROM occurrences"
-        ).fetchall()
+        rows = self._conn.execute("SELECT DISTINCT symbol FROM occurrences").fetchall()
         return [r[0] for r in rows]
 
     def close(self) -> None:

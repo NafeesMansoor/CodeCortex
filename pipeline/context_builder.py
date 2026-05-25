@@ -36,7 +36,7 @@ class PipelineConfig:
     enable_endpoints: bool = True
 
     # Embedding settings
-    embedding_backend: str = "stub"      # "stub" | "local" | "openai"
+    embedding_backend: str = "stub"  # "stub" | "local" | "openai"
     embedding_dimensions: int = 384
     embedding_batch_size: int = 256
 
@@ -52,10 +52,10 @@ class PipelineConfig:
     on_demand_dfg: bool = False
 
     # Advanced pipeline features
-    use_graph_pruning: bool = False      # prune non-semantic nodes after CPG build
-    use_louvain: bool = False            # Louvain graph-based clustering
-    use_beam_traversal: bool = False     # beam search traversal in retrieval
-    use_ppr: bool = False                # personalized PageRank ranking
+    use_graph_pruning: bool = False  # prune non-semantic nodes after CPG build
+    use_louvain: bool = False  # Louvain graph-based clustering
+    use_beam_traversal: bool = False  # beam search traversal in retrieval
+    use_ppr: bool = False  # personalized PageRank ranking
 
     # Retrieval settings
     retrieval_top_k: int = 20
@@ -105,8 +105,8 @@ class CodeCortexPipeline:
         self._centrality_scores = None
         self._cluster_result = None
         self._adjacency_cache = None
-        self._indexed_files: list[Path] = []      # all files seen at build time
-        self._expanded_files: set[str] = set()    # files already expanded with CFG/DFG
+        self._indexed_files: list[Path] = []  # all files seen at build time
+        self._expanded_files: set[str] = set()  # files already expanded with CFG/DFG
         self._louvain_result = None
 
     @classmethod
@@ -139,7 +139,9 @@ class CodeCortexPipeline:
         effective_excludes = exclude_paths or self.config.exclude_paths
 
         # Phase 1+2+3: Parse → CPG (CFG/DFG deferred when on_demand is set)
-        stats.files_parsed, stats.parse_errors, self._store = self._build_cpg(root, languages, effective_excludes)
+        stats.files_parsed, stats.parse_errors, self._store = self._build_cpg(
+            root, languages, effective_excludes
+        )
 
         # Graph pruning — compact semantic graph
         if self.config.use_graph_pruning:
@@ -165,11 +167,13 @@ class CodeCortexPipeline:
 
         # Phase 6: Adjacency cache
         from traversal.traversal_engine import AdjacencyCache
+
         self._adjacency_cache = AdjacencyCache.build(self._store)
 
         # Phase 7: Centrality (standard or PPR-ready)
         t_rank = time.perf_counter()
         from ranking.centrality_engine import CentralityEngine
+
         engine = CentralityEngine(self._store, semantic_only=self.config.semantic_only)
         self._centrality_scores = engine.compute()
         stats.rank_time_s = time.perf_counter() - t_rank
@@ -181,10 +185,12 @@ class CodeCortexPipeline:
         logger.info("CodeCortex pipeline built: %s", stats)
         return stats
 
-    def _build_cpg(self, root: Path, languages: Optional[list[str]], exclude_paths: Optional[list[str]] = None) -> tuple[int, int, object]:
-        from graph.graph_store import GraphStore
-        from graph.cpg_builder import CPGBuilder
+    def _build_cpg(
+        self, root: Path, languages: Optional[list[str]], exclude_paths: Optional[list[str]] = None
+    ) -> tuple[int, int, object]:
         from core.parsers.python_parser import PythonParser
+        from graph.cpg_builder import CPGBuilder
+        from graph.graph_store import GraphStore
 
         store = GraphStore(":memory:")
         cfg = self.config
@@ -205,8 +211,9 @@ class CodeCortexPipeline:
 
         try:
             from core.parsers.javascript_parser import JavaScriptParser
-            from core.parsers.typescript_parser import TypeScriptParser
             from core.parsers.php_parser import PHPParser
+            from core.parsers.typescript_parser import TypeScriptParser
+
             parsers.update({"js": JavaScriptParser(), "ts": TypeScriptParser(), "php": PHPParser()})
         except Exception:
             pass
@@ -246,8 +253,8 @@ class CodeCortexPipeline:
         if not to_expand:
             return 0
 
-        from graph.cpg_builder import CPGBuilder
         from core.parsers.python_parser import PythonParser
+        from graph.cpg_builder import CPGBuilder
 
         builder = CPGBuilder(
             self._store,
@@ -273,6 +280,7 @@ class CodeCortexPipeline:
         added = self._store.edge_count() - before
         if added > 0:
             from traversal.traversal_engine import AdjacencyCache
+
             self._adjacency_cache = AdjacencyCache.build(self._store)
             if self._retrieval_layer is not None:
                 self._retrieval_layer._adjacency_cache = self._adjacency_cache
@@ -282,8 +290,8 @@ class CodeCortexPipeline:
         return added
 
     def _build_embeddings(self):
-        from embeddings.provider_factory import EmbeddingConfig
         from embeddings.embedding_pipeline import EmbeddingPipeline
+        from embeddings.provider_factory import EmbeddingConfig
 
         cfg = self.config
         emb_config = EmbeddingConfig(
@@ -294,33 +302,36 @@ class CodeCortexPipeline:
         return self._embedding_pipeline.index_all(batch_size=cfg.embedding_batch_size)
 
     def _build_clusters(self, stats: PipelineStats) -> None:
-        from clustering.semantic_clusters import SemanticClusterer, ClusterConfig
         from clustering.cluster_labeler import ClusterLabeler
+        from clustering.semantic_clusters import ClusterConfig, SemanticClusterer
 
         if self._embedding_pipeline is None or self._embedding_pipeline.embedding_store.size() < 5:
             return
 
-        clusterer = SemanticClusterer(
-            ClusterConfig(min_cluster_size=self.config.min_cluster_size)
-        )
+        clusterer = SemanticClusterer(ClusterConfig(min_cluster_size=self.config.min_cluster_size))
         try:
             self._cluster_result = clusterer.cluster(self._embedding_pipeline.embedding_store)
             ClusterLabeler().label_all(self._cluster_result.clusters)
             stats.clusters = len(self._cluster_result.clusters)
             stats.noise_nodes = len(self._cluster_result.noise_members)
         except ImportError as e:
-            logger.warning("Clustering skipped — install scikit-learn for KMeans or hdbscan/umap-learn for HDBSCAN: %s", e)
+            logger.warning(
+                "Clustering skipped — install scikit-learn for KMeans or hdbscan/umap-learn for HDBSCAN: %s",
+                e,
+            )
         except Exception as e:
             logger.warning("Clustering failed: %s", e)
 
     def _apply_graph_pruning(self):
         from graph.graph_pruner import GraphPruner
+
         pruned, stats = GraphPruner().prune(self._store)
         logger.info("Graph pruned: %s", stats)
         return pruned
 
     def _build_louvain_clusters(self, stats: PipelineStats) -> None:
         from clustering.louvain_clusterer import LouvainClusterer
+
         try:
             result = LouvainClusterer().cluster(self._store)
             self._louvain_result = result
@@ -342,7 +353,7 @@ class CodeCortexPipeline:
         return memberships
 
     def _build_retrieval_layer(self, cluster_memberships: dict[str, int]) -> None:
-        from retrieval.retrieval_layer import RetrievalLayer, RetrievalConfig
+        from retrieval.retrieval_layer import RetrievalConfig, RetrievalLayer
 
         cfg = self.config
         retrieval_cfg = RetrievalConfig(
@@ -416,6 +427,7 @@ class CodeCortexPipeline:
         if self._centrality_scores is None:
             return []
         from ranking.centrality_engine import CentralityEngine
+
         return CentralityEngine.top_nodes(self._centrality_scores, n=n)
 
     # ------------------------------------------------------------------
@@ -450,6 +462,7 @@ class CodeCortexPipeline:
 
         # Rebuild adjacency cache and invalidate centrality
         from traversal.traversal_engine import AdjacencyCache
+
         self._adjacency_cache = AdjacencyCache.build(self._store)
         if self._retrieval_layer:
             self._retrieval_layer.invalidate_centrality_cache()

@@ -1,5 +1,8 @@
 """Vector embedding layer for CodeCortex — Phase 4."""
 
+from .code_embedder import CodeEmbedder
+from .embedding_pipeline import EmbeddingPipeline, PipelineStats
+from .embedding_store import EmbeddedItem, EmbeddingStore, SearchResult
 from .provider_factory import (
     EmbeddingConfig,
     EmbeddingProvider,
@@ -8,9 +11,6 @@ from .provider_factory import (
     StubEmbeddingProvider,
     create_embedding_provider,
 )
-from .embedding_store import EmbeddedItem, EmbeddingStore, SearchResult
-from .code_embedder import CodeEmbedder
-from .embedding_pipeline import EmbeddingPipeline, PipelineStats
 
 __all__ = [
     "EmbeddingConfig",

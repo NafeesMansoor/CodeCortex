@@ -21,33 +21,45 @@ from graph.schema import CPGEdge
 
 logger = logging.getLogger(__name__)
 
+
+def _children(node) -> list:
+    return [node.child(i) for i in range(node.child_count())]
+
+
+def _text(node, source: str) -> str:
+    raw = source[node.start_byte() : node.end_byte()]
+    return raw.decode() if isinstance(raw, bytes) else raw
+
+
 # tree-sitter node types that introduce new control-flow scopes
-_CONTROL_TYPES = frozenset({
-    "if_statement",
-    "elif_clause",
-    "else_clause",
-    "for_statement",
-    "while_statement",
-    "try_statement",
-    "except_clause",
-    "finally_clause",
-    "with_statement",
-    # JS/TS
-    "if_statement",
-    "for_statement",
-    "for_in_statement",
-    "while_statement",
-    "try_statement",
-    "catch_clause",
-    "switch_statement",
-    "case_clause",
-    # PHP
-    "if_statement",
-    "foreach_statement",
-    "while_statement",
-    "try_statement",
-    "catch_clause",
-})
+_CONTROL_TYPES = frozenset(
+    {
+        "if_statement",
+        "elif_clause",
+        "else_clause",
+        "for_statement",
+        "while_statement",
+        "try_statement",
+        "except_clause",
+        "finally_clause",
+        "with_statement",
+        # JS/TS
+        "if_statement",
+        "for_statement",
+        "for_in_statement",
+        "while_statement",
+        "try_statement",
+        "catch_clause",
+        "switch_statement",
+        "case_clause",
+        # PHP
+        "if_statement",
+        "foreach_statement",
+        "while_statement",
+        "try_statement",
+        "catch_clause",
+    }
+)
 
 _CALL_TYPES = frozenset({"call", "call_expression", "member_call_expression"})
 
@@ -82,8 +94,15 @@ class CFGBuilder:
             List of CONTROLS CPGEdge objects
         """
         edges: list[CPGEdge] = []
-        self._walk(tree.root_node, source, file_path, func_name_map,
-                   enclosing_func=None, in_control=False, edges=edges)
+        self._walk(
+            tree.root_node(),
+            source,
+            file_path,
+            func_name_map,
+            enclosing_func=None,
+            in_control=False,
+            edges=edges,
+        )
         return edges
 
     def _walk(
@@ -96,11 +115,15 @@ class CFGBuilder:
         in_control: bool,
         edges: list[CPGEdge],
     ) -> None:
-        ntype = node.type
+        ntype = node.kind()
 
         # Track enclosing function
-        if ntype in ("function_definition", "function_declaration",
-                     "method_definition", "arrow_function"):
+        if ntype in (
+            "function_definition",
+            "function_declaration",
+            "method_definition",
+            "arrow_function",
+        ):
             func_name = _identifier(node, source)
             enclosing_func = func_name_map.get(func_name, func_name)
 
@@ -114,42 +137,43 @@ class CFGBuilder:
             if call_target:
                 resolved = func_name_map.get(call_target, call_target)
                 if resolved != enclosing_func:
-                    edges.append(CPGEdge(
-                        kind=EdgeKind.CONTROLS,
-                        source=enclosing_func,
-                        target=resolved,
-                        file_path=file_path,
-                        confidence=0.8,
-                    ))
+                    edges.append(
+                        CPGEdge(
+                            kind=EdgeKind.CONTROLS,
+                            source=enclosing_func,
+                            target=resolved,
+                            file_path=file_path,
+                            confidence=0.8,
+                        )
+                    )
 
-        for child in node.children:
-            self._walk(child, source, file_path, func_name_map,
-                       enclosing_func, current_in_control, edges)
+        for child in _children(node):
+            self._walk(
+                child, source, file_path, func_name_map, enclosing_func, current_in_control, edges
+            )
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _identifier(node, source: str) -> str:
-    for child in node.children:
-        if child.type == "identifier":
-            text = source[child.start_byte:child.end_byte]
-            return text.decode() if isinstance(text, bytes) else text
+    for child in _children(node):
+        if child.kind() == "identifier":
+            return _text(child, source)
     return ""
 
 
 def _call_target(node, source: str) -> Optional[str]:
-    if not node.children:
+    if node.child_count() == 0:
         return None
-    first = node.children[0]
-    if first.type == "identifier":
-        text = source[first.start_byte:first.end_byte]
-        return text.decode() if isinstance(text, bytes) else text
+    first = node.child(0)
+    if first.kind() == "identifier":
+        return _text(first, source)
     # member access: obj.method(...)
-    if first.type in ("attribute", "member_expression"):
-        for child in first.children:
-            if child.type == "identifier":
-                text = source[child.start_byte:child.end_byte]
-                return (text.decode() if isinstance(text, bytes) else text)
+    if first.kind() in ("attribute", "member_expression"):
+        for child in _children(first):
+            if child.kind() == "identifier":
+                return _text(child, source)
     return None

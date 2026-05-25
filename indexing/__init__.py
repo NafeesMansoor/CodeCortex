@@ -1,27 +1,27 @@
 """Semantic indexing layer for CodeCortex — Phase 2."""
 
+from .graph_enricher import EnrichmentStats, GraphEnricher
+from .indexing_provider import (
+    IndexingProvider,
+    IndexResult,
+    ProviderRegistry,
+    SymbolDefinition,
+    SymbolOccurrence,
+)
+from .jedi_provider import JediProvider
 from .language_config import (
     LanguageConfig,
     LanguageConfigRegistry,
     get_language_config,
     get_language_config_registry,
 )
-from .semantic_index import SemanticIndex, SymbolInfo
-from .symbol_resolver import SymbolResolver
-from .indexing_provider import (
-    IndexingProvider,
-    IndexResult,
-    SymbolDefinition,
-    SymbolOccurrence,
-    ProviderRegistry,
-)
-from .jedi_provider import JediProvider
 from .lsp_client import LSPClient
 from .lsp_provider import LSPProvider
-from .scip_provider import SCIPProvider, SCIPIndex
 from .reference_graph import ReferenceGraph
+from .scip_provider import SCIPIndex, SCIPProvider
+from .semantic_index import SemanticIndex, SymbolInfo
 from .symbol_cache import SymbolCache
-from .graph_enricher import GraphEnricher, EnrichmentStats
+from .symbol_resolver import SymbolResolver
 
 __all__ = [
     # Phase 1

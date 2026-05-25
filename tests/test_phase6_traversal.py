@@ -3,20 +3,18 @@
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.types import EdgeKind, NodeKind, TraversalConfig
 from graph.graph_store import GraphStore
 from graph.schema import CPGEdge, CPGNode
-from traversal.traversal_engine import AdjacencyCache, TaintFlow, TraversalEngine, TraversalNode
 from traversal.query_optimizer import OptimizationHints, QueryOptimizer
-
+from traversal.traversal_engine import AdjacencyCache, TraversalEngine
 
 # ---------------------------------------------------------------------------
 # Graph fixture
 # ---------------------------------------------------------------------------
+
 
 def _diamond_graph() -> GraphStore:
     """
@@ -27,9 +25,14 @@ def _diamond_graph() -> GraphStore:
     C --READS---> x (variable)
     """
     store = GraphStore(":memory:")
-    for name, kind in [("A", NodeKind.FUNCTION), ("B", NodeKind.FUNCTION),
-                       ("C", NodeKind.FUNCTION), ("D", NodeKind.FUNCTION),
-                       ("E", NodeKind.FUNCTION), ("x", NodeKind.VARIABLE)]:
+    for name, kind in [
+        ("A", NodeKind.FUNCTION),
+        ("B", NodeKind.FUNCTION),
+        ("C", NodeKind.FUNCTION),
+        ("D", NodeKind.FUNCTION),
+        ("E", NodeKind.FUNCTION),
+        ("x", NodeKind.VARIABLE),
+    ]:
         store.add_node(CPGNode(name, kind, name, "f.py"))
 
     store.add_edge(CPGEdge(EdgeKind.CALLS, "A", "B"))
@@ -44,6 +47,7 @@ def _diamond_graph() -> GraphStore:
 # ---------------------------------------------------------------------------
 # AdjacencyCache
 # ---------------------------------------------------------------------------
+
 
 class TestAdjacencyCache:
     def test_build_populates_forward(self):
@@ -80,6 +84,7 @@ class TestAdjacencyCache:
 # ---------------------------------------------------------------------------
 # TraversalEngine BFS
 # ---------------------------------------------------------------------------
+
 
 class TestTraversalEngineBFS:
     def test_bfs_visits_all_reachable(self):
@@ -135,6 +140,7 @@ class TestTraversalEngineBFS:
 # TraversalEngine DFS
 # ---------------------------------------------------------------------------
 
+
 class TestTraversalEngineDFS:
     def test_dfs_visits_all_reachable(self):
         store = _diamond_graph()
@@ -154,6 +160,7 @@ class TestTraversalEngineDFS:
 # ---------------------------------------------------------------------------
 # Shortest path
 # ---------------------------------------------------------------------------
+
 
 class TestShortestPath:
     def test_finds_direct_path(self):
@@ -181,6 +188,7 @@ class TestShortestPath:
 # Impact radius
 # ---------------------------------------------------------------------------
 
+
 class TestImpactRadius:
     def test_impact_radius_maps_to_depth(self):
         store = _diamond_graph()
@@ -201,6 +209,7 @@ class TestImpactRadius:
 # ---------------------------------------------------------------------------
 # Taint propagation
 # ---------------------------------------------------------------------------
+
 
 class TestTaintTraverse:
     def test_taint_reaches_reads_via_writes(self):
@@ -247,6 +256,7 @@ class TestTaintTraverse:
 # Weighted BFS
 # ---------------------------------------------------------------------------
 
+
 class TestWeightedBFS:
     def test_weighted_bfs_returns_results(self):
         store = _diamond_graph()
@@ -258,9 +268,7 @@ class TestWeightedBFS:
         store = _diamond_graph()
         engine = TraversalEngine(store)
         weights = {EdgeKind.CALLS: 0.1, EdgeKind.WRITES: 10.0}
-        results = engine.weighted_bfs(
-            ["A"], TraversalConfig(max_depth=4), edge_weights=weights
-        )
+        results = engine.weighted_bfs(["A"], TraversalConfig(max_depth=4), edge_weights=weights)
         names = [r.qualified_name for r in results]
         # With low CALLS weight, CALLS-reachable nodes should appear before WRITES nodes
         assert len(names) > 0
@@ -269,6 +277,7 @@ class TestWeightedBFS:
 # ---------------------------------------------------------------------------
 # QueryOptimizer
 # ---------------------------------------------------------------------------
+
 
 class TestQueryOptimizer:
     def test_caps_depth(self):

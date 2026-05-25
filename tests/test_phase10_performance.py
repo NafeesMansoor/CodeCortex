@@ -1,28 +1,26 @@
 """Phase 10 tests: graph snapshots, parallel indexing, delta embeddings, pipeline."""
 
 import sys
-import time
 from pathlib import Path
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from core.types import EdgeKind, NodeKind
+from embeddings.embedding_pipeline import EmbeddingPipeline
+from embeddings.provider_factory import EmbeddingConfig
 from graph.graph_store import GraphStore
 from graph.schema import CPGEdge, CPGNode
-from core.types import EdgeKind, NodeKind
+from performance.delta_embedder import DeltaEmbedder
 from performance.graph_snapshot import GraphSnapshot
 from performance.parallel_indexer import ParallelIndexer
-from performance.delta_embedder import DeltaEmbedder
-from embeddings.provider_factory import EmbeddingConfig, StubEmbeddingProvider
-from embeddings.embedding_store import EmbeddingStore
-from embeddings.embedding_pipeline import EmbeddingPipeline
 from pipeline.context_builder import CodeCortexPipeline, PipelineConfig
-
 
 # ---------------------------------------------------------------------------
 # GraphSnapshot
 # ---------------------------------------------------------------------------
+
 
 class TestGraphSnapshot:
     def _filled_store(self) -> GraphStore:
@@ -88,6 +86,7 @@ class TestGraphSnapshot:
 
     def test_load_wrong_version_raises(self, tmp_path):
         import json
+
         bad_path = tmp_path / "bad.json"
         bad_path.write_text(json.dumps({"version": 99, "nodes": [], "edges": []}))
         store2 = GraphStore(":memory:")
@@ -98,6 +97,7 @@ class TestGraphSnapshot:
 # ---------------------------------------------------------------------------
 # ParallelIndexer
 # ---------------------------------------------------------------------------
+
 
 class TestParallelIndexer:
     def test_parse_directory_returns_results(self, tmp_path):
@@ -137,11 +137,13 @@ class TestParallelIndexer:
 # DeltaEmbedder
 # ---------------------------------------------------------------------------
 
+
 class TestDeltaEmbedder:
     def _pipeline(self, tmp_path):
         store = GraphStore(":memory:")
         from core.parsers.python_parser import PythonParser
         from graph.cpg_builder import CPGBuilder
+
         f = tmp_path / "mod.py"
         f.write_text("def alpha(): pass\ndef beta(): pass\n")
         builder = CPGBuilder(store, enable_cfg=False, enable_dfg=False, enable_endpoints=False)
@@ -179,14 +181,18 @@ class TestDeltaEmbedder:
 # End-to-end pipeline (Phase 9 integration via Phase 10 test)
 # ---------------------------------------------------------------------------
 
+
 class TestCodeCortexPipelineE2E:
     def test_build_from_directory(self, tmp_path):
         (tmp_path / "svc.py").write_text(
             "def create_user(name):\n    return save(name)\ndef save(name):\n    pass\n"
         )
         config = PipelineConfig(
-            enable_cfg=False, enable_dfg=False, enable_endpoints=False,
-            embedding_backend="stub", embedding_dimensions=8,
+            enable_cfg=False,
+            enable_dfg=False,
+            enable_endpoints=False,
+            embedding_backend="stub",
+            embedding_dimensions=8,
             enable_clustering=False,
         )
         pipeline = CodeCortexPipeline.from_directory(tmp_path, config=config)
@@ -196,8 +202,11 @@ class TestCodeCortexPipelineE2E:
     def test_query_returns_string(self, tmp_path):
         (tmp_path / "mod.py").write_text("def fetch_data(): pass\ndef process(): pass\n")
         config = PipelineConfig(
-            enable_cfg=False, enable_dfg=False, enable_endpoints=False,
-            embedding_backend="stub", embedding_dimensions=8,
+            enable_cfg=False,
+            enable_dfg=False,
+            enable_endpoints=False,
+            embedding_backend="stub",
+            embedding_dimensions=8,
             enable_clustering=False,
         )
         pipeline = CodeCortexPipeline.from_directory(tmp_path, config=config)
@@ -209,8 +218,11 @@ class TestCodeCortexPipelineE2E:
             "def controller():\n    service()\ndef service():\n    repo()\ndef repo():\n    pass\n"
         )
         config = PipelineConfig(
-            enable_cfg=False, enable_dfg=False, enable_endpoints=False,
-            embedding_backend="stub", embedding_dimensions=8,
+            enable_cfg=False,
+            enable_dfg=False,
+            enable_endpoints=False,
+            embedding_backend="stub",
+            embedding_dimensions=8,
             enable_clustering=False,
         )
         pipeline = CodeCortexPipeline.from_directory(tmp_path, config=config)
@@ -218,12 +230,13 @@ class TestCodeCortexPipelineE2E:
         assert summary.root == "repo"
 
     def test_top_nodes_returns_list(self, tmp_path):
-        (tmp_path / "code.py").write_text(
-            "def a(): b()\ndef b(): c()\ndef c(): pass\n"
-        )
+        (tmp_path / "code.py").write_text("def a(): b()\ndef b(): c()\ndef c(): pass\n")
         config = PipelineConfig(
-            enable_cfg=False, enable_dfg=False, enable_endpoints=False,
-            embedding_backend="stub", embedding_dimensions=8,
+            enable_cfg=False,
+            enable_dfg=False,
+            enable_endpoints=False,
+            embedding_backend="stub",
+            embedding_dimensions=8,
             enable_clustering=False,
         )
         pipeline = CodeCortexPipeline.from_directory(tmp_path, config=config)
@@ -234,8 +247,11 @@ class TestCodeCortexPipelineE2E:
         f = tmp_path / "mod.py"
         f.write_text("def alpha(): pass\n")
         config = PipelineConfig(
-            enable_cfg=False, enable_dfg=False, enable_endpoints=False,
-            embedding_backend="stub", embedding_dimensions=8,
+            enable_cfg=False,
+            enable_dfg=False,
+            enable_endpoints=False,
+            embedding_backend="stub",
+            embedding_dimensions=8,
             enable_clustering=False,
         )
         pipeline = CodeCortexPipeline.from_directory(tmp_path, config=config)

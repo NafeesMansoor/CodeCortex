@@ -22,28 +22,26 @@ import shutil
 from pathlib import Path
 
 from indexing.indexing_provider import (
-    IndexResult,
     IndexingProvider,
-    SymbolDefinition,
+    IndexResult,
     SymbolOccurrence,
 )
 from indexing.lsp_client import LSPClient, path_to_uri, uri_to_path
-from core.types import NodeKind
 
 logger = logging.getLogger(__name__)
 
 _SERVER_COMMANDS: dict[str, list[str]] = {
-    "python":     ["pyright", "--stdio"],
+    "python": ["pyright", "--stdio"],
     "typescript": ["typescript-language-server", "--stdio"],
     "javascript": ["typescript-language-server", "--stdio"],
-    "php":        ["intelephense", "--stdio"],
+    "php": ["intelephense", "--stdio"],
 }
 
 _LANGUAGE_IDS: dict[str, str] = {
-    "python":     "python",
+    "python": "python",
     "typescript": "typescript",
     "javascript": "javascript",
-    "php":        "php",
+    "php": "php",
 }
 
 
@@ -107,20 +105,21 @@ class LSPProvider(IndexingProvider):
                         try:
                             defs = client.definition(uri, lineno, start)
                             for loc in defs:
-                                target_uri = (loc.get("uri") or
-                                              loc.get("targetUri", ""))
+                                target_uri = loc.get("uri") or loc.get("targetUri", "")
                                 target_path = uri_to_path(target_uri)
-                                target_range = (loc.get("range") or
-                                                loc.get("targetSelectionRange", {}))
-                                target_line = (target_range.get("start", {})
-                                               .get("line", 0))
-                                result.occurrences.append(SymbolOccurrence(
-                                    symbol=f"{target_path}:{target_line}:{ident}",
-                                    file_path=str(file_path),
-                                    line=lineno + 1,
-                                    column=start,
-                                    role="reference",
-                                ))
+                                target_range = loc.get("range") or loc.get(
+                                    "targetSelectionRange", {}
+                                )
+                                target_line = target_range.get("start", {}).get("line", 0)
+                                result.occurrences.append(
+                                    SymbolOccurrence(
+                                        symbol=f"{target_path}:{target_line}:{ident}",
+                                        file_path=str(file_path),
+                                        line=lineno + 1,
+                                        column=start,
+                                        role="reference",
+                                    )
+                                )
                                 break
                         except Exception:
                             pass

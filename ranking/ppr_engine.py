@@ -23,8 +23,7 @@ Usage:
 from __future__ import annotations
 
 import logging
-import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 import numpy as np
@@ -50,7 +49,7 @@ class PPRScore:
     qualified_name: str
     ppr_score: float = 0.0
     semantic_score: float = 0.0
-    structural_score: float = 0.0   # fan-in normalized
+    structural_score: float = 0.0  # fan-in normalized
     combined_score: float = 0.0
 
     def to_dict(self) -> dict:
@@ -74,8 +73,9 @@ class PPREngine:
         tol:        Convergence tolerance (L-inf norm).
     """
 
-    def __init__(self, adj_cache, store, alpha: float = 0.85,
-                 max_iter: int = 100, tol: float = 1e-7):
+    def __init__(
+        self, adj_cache, store, alpha: float = 0.85, max_iter: int = 100, tol: float = 1e-7
+    ):
         self.adj = adj_cache
         self.alpha = alpha
         self.max_iter = max_iter
@@ -89,10 +89,7 @@ class PPREngine:
         # Pre-build weighted out-degree and transition matrix info
         self._out_weights: dict[str, float] = {}
         for node in all_nodes:
-            total = sum(
-                EDGE_WEIGHTS.get(kind, 0.1)
-                for _, kind in adj_cache.outgoing(node)
-            )
+            total = sum(EDGE_WEIGHTS.get(kind, 0.1) for _, kind in adj_cache.outgoing(node))
             self._out_weights[node] = total
 
     def rank(
@@ -120,12 +117,9 @@ class PPREngine:
         ppr = self._compute_ppr(seeds)
 
         # --- Structural: fan-in normalized ---
-        max_fan_in = max(
-            (len(list(self.adj.incoming(n))) for n in self._nodes), default=1
-        )
+        max_fan_in = max((len(list(self.adj.incoming(n))) for n in self._nodes), default=1)
         fan_in_scores = {
-            n: len(list(self.adj.incoming(n))) / max(max_fan_in, 1)
-            for n in self._nodes
+            n: len(list(self.adj.incoming(n))) / max(max_fan_in, 1) for n in self._nodes
         }
 
         # --- Semantic: cosine to query embedding ---
@@ -157,13 +151,15 @@ class PPREngine:
             s = sem_scores.get(node, 0.0)
             f = fan_in_scores.get(node, 0.0)
             combined = ppr_weight * p + semantic_weight * s + structural_weight * f
-            results.append(PPRScore(
-                qualified_name=node,
-                ppr_score=p,
-                semantic_score=s,
-                structural_score=f,
-                combined_score=combined,
-            ))
+            results.append(
+                PPRScore(
+                    qualified_name=node,
+                    ppr_score=p,
+                    semantic_score=s,
+                    structural_score=f,
+                    combined_score=combined,
+                )
+            )
 
         results.sort(key=lambda x: -x.combined_score)
         return results[:top_k]

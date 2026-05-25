@@ -34,20 +34,22 @@ from graph.graph_store import GraphStore
 logger = logging.getLogger(__name__)
 
 # Node kinds that carry architectural meaning and should be ranked
-_SEMANTIC_KINDS = frozenset({
-    NodeKind.FUNCTION,
-    NodeKind.METHOD,
-    NodeKind.CLASS,
-    NodeKind.INTERFACE,
-    NodeKind.ENDPOINT,
-    NodeKind.TEST,
-    NodeKind.MODULE,
-    NodeKind.FILE,
-    NodeKind.ENUM,
-    NodeKind.STRUCT,
-    NodeKind.TYPE,
-    NodeKind.NAMESPACE,
-})
+_SEMANTIC_KINDS = frozenset(
+    {
+        NodeKind.FUNCTION,
+        NodeKind.METHOD,
+        NodeKind.CLASS,
+        NodeKind.INTERFACE,
+        NodeKind.ENDPOINT,
+        NodeKind.TEST,
+        NodeKind.MODULE,
+        NodeKind.FILE,
+        NodeKind.ENUM,
+        NodeKind.STRUCT,
+        NodeKind.TYPE,
+        NodeKind.NAMESPACE,
+    }
+)
 
 
 @dataclass
@@ -55,15 +57,15 @@ class NodeScore:
     """Centrality scores for a single graph node."""
 
     qualified_name: str
-    influence_score: float     # PageRank
-    bridge_score: float        # Betweenness (normalized 0-1)
-    closeness_score: float     # Closeness centrality [0, 1]
-    eigenvector_score: float   # Eigenvector centrality [0, 1]
-    fan_in: int                # In-degree
-    fan_out: int               # Out-degree
-    stability_score: float     # fan_in / (fan_in + fan_out + 1) — stable API proxy
-    volatility_score: float    # fan_out / (fan_in + fan_out + 1) — change-prone proxy
-    composite_score: float     # Weighted combined score
+    influence_score: float  # PageRank
+    bridge_score: float  # Betweenness (normalized 0-1)
+    closeness_score: float  # Closeness centrality [0, 1]
+    eigenvector_score: float  # Eigenvector centrality [0, 1]
+    fan_in: int  # In-degree
+    fan_out: int  # Out-degree
+    stability_score: float  # fan_in / (fan_in + fan_out + 1) — stable API proxy
+    volatility_score: float  # fan_out / (fan_in + fan_out + 1) — change-prone proxy
+    composite_score: float  # Weighted combined score
 
     def to_dict(self) -> dict:
         return {
@@ -143,10 +145,9 @@ class CentralityEngine:
         node_set = set(node_names)
 
         filtered_edges = [
-            e for e in edges
-            if e.kind in self.edge_filter
-            and e.source in node_set
-            and e.target in node_set
+            e
+            for e in edges
+            if e.kind in self.edge_filter and e.source in node_set and e.target in node_set
         ]
 
         try:
@@ -188,8 +189,14 @@ class CentralityEngine:
         max_indeg = max(in_degree.values(), default=1) or 1
 
         return self._build_scores(
-            node_names, pagerank, betweenness, closeness, eigenvector,
-            in_degree, out_degree, max_indeg
+            node_names,
+            pagerank,
+            betweenness,
+            closeness,
+            eigenvector,
+            in_degree,
+            out_degree,
+            max_indeg,
         )
 
     def _compute_python(self, node_names, edges) -> dict[str, NodeScore]:
@@ -243,8 +250,14 @@ class CentralityEngine:
 
         max_indeg = max(in_degree.values(), default=1) or 1
         return self._build_scores(
-            node_names, pagerank, betweenness, closeness, eigenvector,
-            in_degree, out_degree, max_indeg
+            node_names,
+            pagerank,
+            betweenness,
+            closeness,
+            eigenvector,
+            in_degree,
+            out_degree,
+            max_indeg,
         )
 
     def _approx_closeness(self, node_names, out_links, in_links, n) -> dict[str, float]:
@@ -254,9 +267,10 @@ class CentralityEngine:
         closeness = {}
         # Sample up to 100 nodes as sources
         import random
+
         sample_size = min(100, n)
         sample_indices = random.sample(range(n), sample_size)
-        sample_set = set(sample_indices)
+        set(sample_indices)
 
         total_hops = [0.0] * n
         reach_count = [0] * n

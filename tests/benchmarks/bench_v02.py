@@ -47,6 +47,7 @@ def _ts() -> str:
 def _rss() -> float:
     try:
         import resource
+
         return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024 / 1024
     except Exception:
         return 0.0
@@ -58,8 +59,8 @@ def _collect_py(directory: Path) -> list[Path]:
 
 def _build_full_cpg(py_files: list[Path]):
     from core.parsers.python_parser import PythonParser
-    from graph.graph_store import GraphStore
     from graph.cpg_builder import CPGBuilder
+    from graph.graph_store import GraphStore
 
     store = GraphStore(":memory:")
     builder = CPGBuilder(store, enable_cfg=True, enable_dfg=True, enable_endpoints=True)
@@ -78,12 +79,14 @@ def _build_full_cpg(py_files: list[Path]):
 
 def _build_adj(store):
     from traversal.traversal_engine import AdjacencyCache
+
     return AdjacencyCache.build(store)
 
 
 def _build_stub_emb(store):
-    from embeddings.provider_factory import EmbeddingConfig
     from embeddings.embedding_pipeline import EmbeddingPipeline
+    from embeddings.provider_factory import EmbeddingConfig
+
     cfg = EmbeddingConfig(provider="stub", dimensions=64)
     pipeline = EmbeddingPipeline.from_config(store, cfg)
     pipeline.index_all(batch_size=512)
@@ -91,8 +94,9 @@ def _build_stub_emb(store):
 
 
 def _build_real_emb(store):
-    from embeddings.provider_factory import EmbeddingConfig
     from embeddings.embedding_pipeline import EmbeddingPipeline
+    from embeddings.provider_factory import EmbeddingConfig
+
     cfg = EmbeddingConfig(provider="local", model_name="all-MiniLM-L6-v2", dimensions=384)
     pipeline = EmbeddingPipeline.from_config(store, cfg)
     t0 = time.perf_counter()
@@ -103,6 +107,7 @@ def _build_real_emb(store):
 
 def _retrieval_latency(store, emb_pipeline, adj, centrality=None):
     from retrieval.retrieval_layer import RetrievalConfig, RetrievalLayer
+
     cfg = RetrievalConfig(top_k=10, min_semantic_score=0.0, token_budget=None)
     layer = RetrievalLayer(store, emb_pipeline.embedding_store, config=cfg, adjacency_cache=adj)
     if centrality:
@@ -123,16 +128,19 @@ def _append(entry: str) -> None:
 
 def _score(retrieval_pct, graph_compression_pct, semantic_sil, efficiency_01, ranking_std) -> float:
     retrieval = min(retrieval_pct / 100.0, 1.0)
-    graph = min(graph_compression_pct / 100.0, 1.0)     # higher reduction = better
+    graph = min(graph_compression_pct / 100.0, 1.0)  # higher reduction = better
     semantic = min(max(semantic_sil, 0.0), 1.0)
     efficiency = min(efficiency_01, 1.0)
     ranking = min(ranking_std * 1000, 1.0)
-    return round(0.25 * retrieval + 0.25 * graph + 0.20 * semantic + 0.15 * efficiency + 0.15 * ranking, 4)
+    return round(
+        0.25 * retrieval + 0.25 * graph + 0.20 * semantic + 0.15 * efficiency + 0.15 * ranking, 4
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Phase 1: Hybrid CPG
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def phase1_hybrid_cpg(py_files: list[Path], quiet: bool) -> None:
     from graph.graph_pruner import GraphPruner
@@ -153,8 +161,9 @@ def phase1_hybrid_cpg(py_files: list[Path], quiet: bool) -> None:
 
     # BFS latency on both graphs
     import random
-    from traversal.traversal_engine import TraversalEngine
+
     from core.types import TraversalConfig
+    from traversal.traversal_engine import TraversalEngine
 
     sample = random.sample(store_full.all_nodes(), min(20, store_full.node_count()))
     names = [n.qualified_name for n in sample]
@@ -174,9 +183,15 @@ def phase1_hybrid_cpg(py_files: list[Path], quiet: bool) -> None:
     bfs_pruned_ms = (time.perf_counter() - t3) / len(names_p) * 1000
 
     if not quiet:
-        print(f"  Full CPG   : {store_full.node_count()} nodes, {store_full.edge_count()} edges  ({t_full:.2f}s)")
-        print(f"  Pruned CPG : {prune_stats.nodes_after} nodes, {prune_stats.edges_after} edges  (-{prune_stats.node_reduction_pct}% nodes, -{prune_stats.edge_reduction_pct}% edges)")
-        print(f"  BFS latency: {bfs_full_ms:.3f}ms → {bfs_pruned_ms:.3f}ms  ({round((1-bfs_pruned_ms/bfs_full_ms)*100,1) if bfs_full_ms>0 else 0}% faster)")
+        print(
+            f"  Full CPG   : {store_full.node_count()} nodes, {store_full.edge_count()} edges  ({t_full:.2f}s)"
+        )
+        print(
+            f"  Pruned CPG : {prune_stats.nodes_after} nodes, {prune_stats.edges_after} edges  (-{prune_stats.node_reduction_pct}% nodes, -{prune_stats.edge_reduction_pct}% edges)"
+        )
+        print(
+            f"  BFS latency: {bfs_full_ms:.3f}ms → {bfs_pruned_ms:.3f}ms  ({round((1 - bfs_pruned_ms / bfs_full_ms) * 100, 1) if bfs_full_ms > 0 else 0}% faster)"
+        )
 
     composite = _score(
         retrieval_pct=0,
@@ -202,7 +217,7 @@ def phase1_hybrid_cpg(py_files: list[Path], quiet: bool) -> None:
 | Edges | {store_full.edge_count()} | {prune_stats.edges_after} | **-{prune_stats.edge_reduction_pct}%** |
 | Dedup edges | — | {prune_stats.edges_deduped} removed | — |
 | Build time | {round(t_full, 3)}s | +{round(t_prune, 4)}s prune | — |
-| BFS latency | {round(bfs_full_ms, 3)}ms | {round(bfs_pruned_ms, 3)}ms | **-{round((1-bfs_pruned_ms/max(bfs_full_ms,0.001))*100,1)}%** |
+| BFS latency | {round(bfs_full_ms, 3)}ms | {round(bfs_pruned_ms, 3)}ms | **-{round((1 - bfs_pruned_ms / max(bfs_full_ms, 0.001)) * 100, 1)}%** |
 
 *Pruning retains FUNCTION / METHOD / CLASS / INTERFACE / ENDPOINT / TEST / MODULE / FILE / ENUM / STRUCT / TYPE / NAMESPACE nodes only. Drops VARIABLE / PARAMETER / CALLSITE.*
 
@@ -218,9 +233,11 @@ def phase1_hybrid_cpg(py_files: list[Path], quiet: bool) -> None:
 # Phase 2: Real Embeddings + HNSW
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def phase2_real_embeddings(py_files: list[Path], quiet: bool) -> None:
     store_full, _ = _build_full_cpg(py_files)
     from graph.graph_pruner import GraphPruner
+
     store, prune_stats = GraphPruner().prune(store_full)
     adj = _build_adj(store)
 
@@ -234,6 +251,7 @@ def phase2_real_embeddings(py_files: list[Path], quiet: bool) -> None:
 
     # Semantic score: measure cosine similarity spread
     import numpy as np
+
     items = list(real_pipeline.embedding_store._items.values())
     vecs = np.array([item.vector for item in items], dtype="float32")
     sims = []
@@ -256,7 +274,9 @@ def phase2_real_embeddings(py_files: list[Path], quiet: bool) -> None:
         print(f"  Embedded   : {emb_stats.nodes_embedded} nodes in {embed_time:.2f}s")
         print(f"  Index type : {index_type} (FAISS)")
         print(f"  Latency    : stub {stub_lat}ms → real {real_lat}ms")
-        print(f"  Cosine sim : mean={mean_sim:.4f}, std={std_sim:.4f}  (spread > 0 = real semantics)")
+        print(
+            f"  Cosine sim : mean={mean_sim:.4f}, std={std_sim:.4f}  (spread > 0 = real semantics)"
+        )
 
     composite = _score(
         retrieval_pct=real_res * 10,
@@ -301,12 +321,15 @@ def phase2_real_embeddings(py_files: list[Path], quiet: bool) -> None:
 # Phase 3: Louvain Clustering
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def phase3_louvain(py_files: list[Path], quiet: bool) -> None:
     store_full, _ = _build_full_cpg(py_files)
     from graph.graph_pruner import GraphPruner
+
     store, _ = GraphPruner().prune(store_full)
 
     from clustering.louvain_clusterer import LouvainClusterer
+
     t0 = time.perf_counter()
     result = LouvainClusterer(resolution=1.0).cluster(store)
     louvain_time = time.perf_counter() - t0
@@ -324,8 +347,7 @@ def phase3_louvain(py_files: list[Path], quiet: bool) -> None:
     # Labels for top 5 communities
     top_clusters = sorted(result.clusters, key=lambda c: -c.size)[:5]
     top_labels = "\n".join(
-        f"    {i+1}. `{c.label}` ({c.size} nodes)"
-        for i, c in enumerate(top_clusters)
+        f"    {i + 1}. `{c.label}` ({c.size} nodes)" for i, c in enumerate(top_clusters)
     )
 
     composite = _score(
@@ -372,20 +394,24 @@ def phase3_louvain(py_files: list[Path], quiet: bool) -> None:
 # Phase 4: Beam Search Traversal
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def phase4_beam_traversal(py_files: list[Path], quiet: bool) -> None:
     import random
+
     store_full, _ = _build_full_cpg(py_files)
     from graph.graph_pruner import GraphPruner
+
     store, _ = GraphPruner().prune(store_full)
     adj = _build_adj(store)
     real_pipeline, _, _ = _build_real_emb(store)
 
     from ranking.centrality_engine import CentralityEngine
+
     centrality = CentralityEngine(store, semantic_only=True).compute()
 
+    from core.types import TraversalConfig
     from traversal.beam_traversal import BeamTraversal
     from traversal.traversal_engine import TraversalEngine
-    from core.types import TraversalConfig
 
     nodes = store.all_nodes()
     sample = random.sample(nodes, min(20, len(nodes)))
@@ -405,7 +431,10 @@ def phase4_beam_traversal(py_files: list[Path], quiet: bool) -> None:
         beam_width=20,
     )
     t1 = time.perf_counter()
-    beam_results = [beam.traverse(seeds=[n], query=QUERIES[i % len(QUERIES)], max_depth=4) for i, n in enumerate(names)]
+    beam_results = [
+        beam.traverse(seeds=[n], query=QUERIES[i % len(QUERIES)], max_depth=4)
+        for i, n in enumerate(names)
+    ]
     beam_ms = (time.perf_counter() - t1) / len(names) * 1000
 
     avg_bfs = sum(bfs_sizes) / len(bfs_sizes) if bfs_sizes else 0
@@ -464,12 +493,15 @@ def phase4_beam_traversal(py_files: list[Path], quiet: bool) -> None:
 # Phase 5: Personalized PageRank
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def phase5_ppr(py_files: list[Path], quiet: bool) -> None:
     import random
+
     import numpy as np
 
     store_full, _ = _build_full_cpg(py_files)
     from graph.graph_pruner import GraphPruner
+
     store, _ = GraphPruner().prune(store_full)
     adj = _build_adj(store)
 
@@ -502,10 +534,10 @@ def phase5_ppr(py_files: list[Path], quiet: bool) -> None:
     if not quiet:
         print(f"  Global PR  : std={global_std:.8f}  ({global_time:.3f}s)")
         print(f"  PPR (5 seeds): std={ppr_std:.8f}  entropy={ppr_entropy:.4f}  ({ppr_time:.3f}s)")
-        print(f"  Discrimination improvement: {round(ppr_std/max(global_std,1e-10), 1)}×")
+        print(f"  Discrimination improvement: {round(ppr_std / max(global_std, 1e-10), 1)}×")
 
     top_str = "\n".join(
-        f"    {i+1}. `{s.qualified_name.split('/')[-1][:55]}` — ppr={s.ppr_score:.8f}  combined={s.combined_score:.6f}"
+        f"    {i + 1}. `{s.qualified_name.split('/')[-1][:55]}` — ppr={s.ppr_score:.8f}  combined={s.combined_score:.6f}"
         for i, s in enumerate(top5)
     )
 
@@ -531,7 +563,7 @@ def phase5_ppr(py_files: list[Path], quiet: bool) -> None:
 |--------|----------------|-----------|
 | PageRank std dev | {round(global_std, 8)} | {round(ppr_std, 8)} |
 | Distribution entropy | — | {round(ppr_entropy, 4)} |
-| Discrimination | baseline | **{round(ppr_std/max(global_std,1e-10), 1)}× better** |
+| Discrimination | baseline | **{round(ppr_std / max(global_std, 1e-10), 1)}× better** |
 | Compute time | {round(global_time, 3)}s | {round(ppr_time, 3)}s |
 | Query-conditioned | No | Yes (seeds = query nodes) |
 
@@ -553,9 +585,11 @@ def phase5_ppr(py_files: list[Path], quiet: bool) -> None:
 # Phase 6: Full V0.2 Pipeline
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def phase6_full_v02(py_files: list[Path], quiet: bool) -> None:
-    import numpy as np
     import random
+
+    import numpy as np
 
     # Build full V0.2 pipeline
     t_start = time.perf_counter()
@@ -565,12 +599,14 @@ def phase6_full_v02(py_files: list[Path], quiet: bool) -> None:
     t_cpg = time.perf_counter() - t_start
 
     from graph.graph_pruner import GraphPruner
+
     store, prune_stats = GraphPruner().prune(store_full)
     t_prune = time.perf_counter() - t_start - t_cpg
 
     real_pipeline, embed_time, emb_stats = _build_real_emb(store)
 
     from clustering.louvain_clusterer import LouvainClusterer
+
     t_clust = time.perf_counter()
     louvain = LouvainClusterer(resolution=1.0).cluster(store)
     louvain_time = time.perf_counter() - t_clust
@@ -579,6 +615,7 @@ def phase6_full_v02(py_files: list[Path], quiet: bool) -> None:
 
     from ranking.centrality_engine import CentralityEngine
     from ranking.ppr_engine import PPREngine
+
     t_rank = time.perf_counter()
     global_engine = CentralityEngine(store, semantic_only=True)
     centrality = global_engine.compute()
@@ -592,8 +629,10 @@ def phase6_full_v02(py_files: list[Path], quiet: bool) -> None:
 
     # Retrieval with pre-computed centrality
     from retrieval.retrieval_layer import RetrievalConfig, RetrievalLayer
+
     layer = RetrievalLayer(
-        store, real_pipeline.embedding_store,
+        store,
+        real_pipeline.embedding_store,
         config=RetrievalConfig(top_k=10, min_semantic_score=0.0, token_budget=None),
         cluster_memberships=dict(louvain.node_to_cluster),
         adjacency_cache=adj,
@@ -606,11 +645,15 @@ def phase6_full_v02(py_files: list[Path], quiet: bool) -> None:
 
     # Beam traversal
     from traversal.beam_traversal import BeamTraversal
+
     nodes = store.all_nodes()
     beam = BeamTraversal(adj, centrality, real_pipeline.embedding_store, beam_width=20)
     sample = random.sample(nodes, min(20, len(nodes)))
     t_beam = time.perf_counter()
-    beam_results = [beam.traverse([n.qualified_name], query=QUERIES[i % len(QUERIES)], max_depth=4) for i, n in enumerate(sample)]
+    [
+        beam.traverse([n.qualified_name], query=QUERIES[i % len(QUERIES)], max_depth=4)
+        for i, n in enumerate(sample)
+    ]
     beam_ms = (time.perf_counter() - t_beam) / len(sample) * 1000
 
     # PPR stats
@@ -644,12 +687,12 @@ def phase6_full_v02(py_files: list[Path], quiet: bool) -> None:
 
     top_nodes = global_engine.top_nodes(centrality, n=10)
     top_str = "\n".join(
-        f"    {i+1}. `{s.qualified_name.split('/')[-1][:55]}` — composite={s.composite_score:.5f}"
+        f"    {i + 1}. `{s.qualified_name.split('/')[-1][:55]}` — composite={s.composite_score:.5f}"
         for i, s in enumerate(top_nodes)
     )
     hotspots = global_engine.hotspots(centrality, n=5)
     hotspot_str = "\n".join(
-        f"    {i+1}. `{s.qualified_name.split('/')[-1][:55]}` — fan_in={s.fan_in}"
+        f"    {i + 1}. `{s.qualified_name.split('/')[-1][:55]}` — fan_in={s.fan_in}"
         for i, s in enumerate(hotspots)
     )
 
@@ -668,7 +711,7 @@ def phase6_full_v02(py_files: list[Path], quiet: bool) -> None:
 
 **Evaluated:** {_ts()}
 **Codebase:** `code-review-graph/code_review_graph/` ({len(py_files)} Python files)
-**RSS at end:** {round(_rss(), 1)} MB   Peak traced: {round(peak_mem/1024/1024, 1)} MB
+**RSS at end:** {round(_rss(), 1)} MB   Peak traced: {round(peak_mem / 1024 / 1024, 1)} MB
 
 ### V0.2 vs V0.1 Comparison
 
@@ -729,7 +772,7 @@ def phase6_full_v02(py_files: list[Path], quiet: bool) -> None:
 |---------------|----------------|-----------|
 | Std dev | {round(pr_std, 8)} | {round(ppr_std, 8)} |
 | Query-conditioned | No | Yes |
-| Discrimination ratio | 1× | {round(ppr_std/max(pr_std,1e-12), 1)}× |
+| Discrimination ratio | 1× | {round(ppr_std / max(pr_std, 1e-12), 1)}× |
 
 ### V0.2 Composite Score
 
@@ -740,11 +783,11 @@ score = 0.25×retrieval + 0.25×graph_compression + 0.20×semantic + 0.15×effic
 
 | Dimension | Sub-score | Notes |
 |-----------|-----------|-------|
-| Retrieval Quality | {round(min(sum(counts)/len(counts)*10/100, 1), 4)} | {round(sum(counts)/len(counts), 1)}/10 avg results |
-| Graph Compression | {round(prune_stats.edge_reduction_pct/100, 4)} | {prune_stats.edge_reduction_pct}% edge reduction |
+| Retrieval Quality | {round(min(sum(counts) / len(counts) * 10 / 100, 1), 4)} | {round(sum(counts) / len(counts), 1)}/10 avg results |
+| Graph Compression | {round(prune_stats.edge_reduction_pct / 100, 4)} | {prune_stats.edge_reduction_pct}% edge reduction |
 | Semantic Cohesion | {round(min(cos_std, 1), 4)} | cosine std = {round(cos_std, 4)} |
-| Efficiency | {round(max(0, 1-t_total/30), 4)} | {round(t_total, 2)}s total |
-| Ranking (PPR) | {round(min(ppr_std*1000, 1), 4)} | PPR std = {round(ppr_std, 8)} |
+| Efficiency | {round(max(0, 1 - t_total / 30), 4)} | {round(t_total, 2)}s total |
+| Ranking (PPR) | {round(min(ppr_std * 1000, 1), 4)} | PPR std = {round(ppr_std, 8)} |
 | **V0.2 COMPOSITE** | **{composite}** | |
 
 """
@@ -756,6 +799,7 @@ score = 0.25×retrieval + 0.25×graph_compression + 0.20×semantic + 0.15×effic
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def main():
     parser = argparse.ArgumentParser(description="CodeCortex V0.2 benchmark")
@@ -775,11 +819,11 @@ def main():
         sys.exit(1)
 
     if not args.quiet:
-        print(f"\n{'='*65}")
-        print(f"  CodeCortex V0.2 — Per-Phase Benchmark")
+        print(f"\n{'=' * 65}")
+        print("  CodeCortex V0.2 — Per-Phase Benchmark")
         print(f"  {_ts()}")
         print(f"  Target: {target_dir}")
-        print(f"{'='*65}\n")
+        print(f"{'=' * 65}\n")
 
     phases = [
         ("Phase 1 — Hybrid CPG", phase1_hybrid_cpg),
@@ -796,9 +840,9 @@ def main():
         fn(py_files, args.quiet)
 
     if not args.quiet:
-        print(f"\n{'='*65}")
+        print(f"\n{'=' * 65}")
         print(f"  Results appended → {RESULTS_PATH.relative_to(ROOT)}")
-        print(f"{'='*65}\n")
+        print(f"{'=' * 65}\n")
 
 
 if __name__ == "__main__":

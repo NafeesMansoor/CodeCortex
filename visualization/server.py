@@ -13,7 +13,6 @@ from __future__ import annotations
 import argparse
 import http.server
 import json
-import os
 import sys
 import threading
 import time
@@ -61,9 +60,9 @@ def _build_and_export(target: Path, languages: list[str] | None) -> dict:
     from pipeline.context_builder import CodeCortexPipeline, PipelineConfig
     from visualization.graph_exporter import GraphExporter
 
-    print(f"\nCodeCortex Visualizer")
+    print("\nCodeCortex Visualizer")
     print(f"  Target  : {target}")
-    print(f"  Building index…", flush=True)
+    print("  Building index…", flush=True)
 
     config = PipelineConfig(
         enable_cfg=True,
@@ -82,11 +81,13 @@ def _build_and_export(target: Path, languages: list[str] | None) -> dict:
     nodes = store.node_count() if store else 0
     edges = store.edge_count() if store else 0
     print(f"  Done in {elapsed:.1f}s — {nodes} nodes, {edges} edges")
-    print(f"  Exporting graph…", flush=True)
+    print("  Exporting graph…", flush=True)
 
     data = GraphExporter(pipeline).export(project_name=target.name)
-    print(f"  Export ready — {data['metadata']['cluster_count']} clusters, "
-          f"{data['metadata']['hotspot_count']} hotspots")
+    print(
+        f"  Export ready — {data['metadata']['cluster_count']} clusters, "
+        f"{data['metadata']['hotspot_count']} hotspots"
+    )
     return data
 
 
@@ -125,7 +126,7 @@ def main(argv=None) -> int:
     server = http.server.HTTPServer(("localhost", args.port), _Handler)
 
     print(f"\n  Graph Explorer : {url}")
-    print(f"  Press Ctrl+C to stop\n")
+    print("  Press Ctrl+C to stop\n")
 
     if not args.no_open:
         threading.Timer(0.5, lambda: webbrowser.open(url)).start()

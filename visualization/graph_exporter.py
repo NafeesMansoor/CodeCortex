@@ -9,14 +9,22 @@ from __future__ import annotations
 import math
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
-
+from typing import Any
 
 # Stable color palette: one per cluster index (cycles for >12 clusters)
 _CLUSTER_COLORS = [
-    "#58A6FF", "#3FB950", "#FF7B72", "#D2A8FF", "#FFA657",
-    "#79C0FF", "#56D364", "#FF6E40", "#E3B341", "#BC8CFF",
-    "#89DDFF", "#F78166",
+    "#58A6FF",
+    "#3FB950",
+    "#FF7B72",
+    "#D2A8FF",
+    "#FFA657",
+    "#79C0FF",
+    "#56D364",
+    "#FF6E40",
+    "#E3B341",
+    "#BC8CFF",
+    "#89DDFF",
+    "#F78166",
 ]
 
 
@@ -28,22 +36,22 @@ def _cluster_color(cluster_id: int) -> str:
 
 def _node_base_color(kind: str) -> str:
     return {
-        "File":      "#1F6FEB",
-        "Module":    "#388BFD",
+        "File": "#1F6FEB",
+        "Module": "#388BFD",
         "Namespace": "#388BFD",
-        "Class":     "#3FB950",
-        "Struct":    "#3FB950",
+        "Class": "#3FB950",
+        "Struct": "#3FB950",
         "Interface": "#79C0FF",
-        "Function":  "#F78166",
-        "Method":    "#FF7B72",
-        "Endpoint":  "#FF6E40",
-        "Test":      "#D2A8FF",
-        "Constant":  "#FFA657",
-        "Enum":      "#FFA657",
-        "Type":      "#79C0FF",
-        "Variable":  "#6E7681",
+        "Function": "#F78166",
+        "Method": "#FF7B72",
+        "Endpoint": "#FF6E40",
+        "Test": "#D2A8FF",
+        "Constant": "#FFA657",
+        "Enum": "#FFA657",
+        "Type": "#79C0FF",
+        "Variable": "#6E7681",
         "Parameter": "#6E7681",
-        "Callsite":  "#6E7681",
+        "Callsite": "#6E7681",
     }.get(kind, "#8B949E")
 
 
@@ -67,7 +75,9 @@ class GraphExporter:
             for c in self._pipeline._cluster_result.clusters:
                 cluster_labels[c.cluster_id] = c.label or f"cluster-{c.cluster_id}"
         if self._pipeline._louvain_result is not None:
-            for cid, members in enumerate(getattr(self._pipeline._louvain_result, "communities", [])):
+            for cid, members in enumerate(
+                getattr(self._pipeline._louvain_result, "communities", [])
+            ):
                 if cid not in cluster_labels:
                     cluster_labels[cid] = f"community-{cid}"
 
@@ -89,7 +99,7 @@ class GraphExporter:
         # Compute centrality stats for normalization
         scores_list = [s.composite_score for s in centrality.values()] if centrality else []
         max_score = max(scores_list, default=1.0) or 1.0
-        max_fan_in = max((s.fan_in for s in centrality.values()), default=1) if centrality else 1
+        max((s.fan_in for s in centrality.values()), default=1) if centrality else 1
 
         # Top 10% are hotspots
         if scores_list:
@@ -111,27 +121,29 @@ class GraphExporter:
             norm = composite / max_score if max_score else 0
             size = 20 + math.log1p(norm * 10) / math.log1p(10) * 40
 
-            nodes.append({
-                "id": node.qualified_name,
-                "name": node.name,
-                "kind": node.kind.value if hasattr(node.kind, "value") else str(node.kind),
-                "file": node.file_path,
-                "language": node.language or "",
-                "line": node.range.start_line if node.range else 0,
-                "cluster_id": cluster_id,
-                "cluster_label": cluster_labels.get(cluster_id, ""),
-                "centrality": round(composite, 6),
-                "fan_in": fan_in,
-                "fan_out": fan_out,
-                "is_hotspot": is_hotspot,
-                "is_test": bool(getattr(node, "is_test", False)),
-                "docstring": (node.docstring or "")[:200],
-                "color": _node_base_color(
-                    node.kind.value if hasattr(node.kind, "value") else str(node.kind)
-                ),
-                "cluster_color": _cluster_color(cluster_id),
-                "size": round(size, 1),
-            })
+            nodes.append(
+                {
+                    "id": node.qualified_name,
+                    "name": node.name,
+                    "kind": node.kind.value if hasattr(node.kind, "value") else str(node.kind),
+                    "file": node.file_path,
+                    "language": node.language or "",
+                    "line": node.range.start_line if node.range else 0,
+                    "cluster_id": cluster_id,
+                    "cluster_label": cluster_labels.get(cluster_id, ""),
+                    "centrality": round(composite, 6),
+                    "fan_in": fan_in,
+                    "fan_out": fan_out,
+                    "is_hotspot": is_hotspot,
+                    "is_test": bool(getattr(node, "is_test", False)),
+                    "docstring": (node.docstring or "")[:200],
+                    "color": _node_base_color(
+                        node.kind.value if hasattr(node.kind, "value") else str(node.kind)
+                    ),
+                    "cluster_color": _cluster_color(cluster_id),
+                    "size": round(size, 1),
+                }
+            )
 
         all_edges = store.all_edges()
         edges = [
@@ -151,7 +163,9 @@ class GraphExporter:
 
         return {
             "metadata": {
-                "project": project_name or Path(store._db_path).stem if hasattr(store, "_db_path") else "project",
+                "project": project_name or Path(store._db_path).stem
+                if hasattr(store, "_db_path")
+                else "project",
                 "generated_at": datetime.now(timezone.utc).isoformat(),
                 "version": "1.0.0",
                 "node_count": node_count,

@@ -15,9 +15,9 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from core.types import EdgeKind, NodeKind, NodeInfo, EdgeInfo, ParseResult
-from graph.schema import CPGEdge, CPGNode
+from core.types import EdgeInfo, EdgeKind, NodeInfo, NodeKind, ParseResult
 from graph.graph_store import GraphStore
+from graph.schema import CPGEdge, CPGNode
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +59,7 @@ class CPGBuilder:
     def ingest(self, result: ParseResult) -> None:
         """Ingest a ParseResult into the CPG."""
         if not result.is_success():
-            logger.warning("Skipping %s — parse errors: %s",
-                           result.file_path, result.errors)
+            logger.warning("Skipping %s — parse errors: %s", result.file_path, result.errors)
             return
 
         self._ensure_file_node(result.file_path, result.language)
@@ -81,13 +80,14 @@ class CPGBuilder:
         tree = getattr(result, "_tree", None)
         source = getattr(result, "_source", None)
         if tree is not None and source is not None:
-            func_map = {n.name: n.qualified_name for n in result.nodes
-                        if n.kind in (NodeKind.FUNCTION, NodeKind.METHOD, NodeKind.TEST)}
+            func_map = {
+                n.name: n.qualified_name
+                for n in result.nodes
+                if n.kind in (NodeKind.FUNCTION, NodeKind.METHOD, NodeKind.TEST)
+            }
 
             if self.enable_cfg:
-                cfg_edges = self._cfg_builder().process(
-                    tree, source, result.file_path, func_map
-                )
+                cfg_edges = self._cfg_builder().process(tree, source, result.file_path, func_map)
                 self.store.add_edges(cfg_edges)
 
             if self.enable_dfg:
@@ -98,9 +98,7 @@ class CPGBuilder:
                 self.store.add_edges(dfg_edges)
 
             if self.enable_endpoints:
-                ep_nodes = self._ep_detector().detect(
-                    tree, source, result.file_path, func_map
-                )
+                ep_nodes = self._ep_detector().detect(tree, source, result.file_path, func_map)
                 if ep_nodes:
                     self.store.add_nodes(ep_nodes)
                     # Wire endpoint → handler via CONTAINS
@@ -116,8 +114,7 @@ class CPGBuilder:
                     ]
                     self.store.add_edges(ep_edges)
 
-        logger.debug("Ingested %s: %d nodes, %d edges",
-                     result.file_path, len(nodes), len(edges))
+        logger.debug("Ingested %s: %d nodes, %d edges", result.file_path, len(nodes), len(edges))
 
     def ingest_many(self, results: list[ParseResult]) -> None:
         for result in results:
@@ -130,8 +127,10 @@ class CPGBuilder:
 
         all_edges = self.store.all_edges()
         stale = [
-            e for e in all_edges
-            if e.source in qualified_names or e.target in qualified_names
+            e
+            for e in all_edges
+            if e.source in qualified_names
+            or e.target in qualified_names
             or e.file_path == file_path
         ]
 
@@ -155,54 +154,65 @@ class CPGBuilder:
         edges = []
         for node in result.nodes:
             if node.parent_name is None:
-                edges.append(CPGEdge(
-                    kind=EdgeKind.CONTAINS,
-                    source=result.file_path,
-                    target=node.qualified_name,
-                    file_path=result.file_path,
-                ))
+                edges.append(
+                    CPGEdge(
+                        kind=EdgeKind.CONTAINS,
+                        source=result.file_path,
+                        target=node.qualified_name,
+                        file_path=result.file_path,
+                    )
+                )
             else:
-                edges.append(CPGEdge(
-                    kind=EdgeKind.CONTAINS,
-                    source=node.parent_name,
-                    target=node.qualified_name,
-                    file_path=result.file_path,
-                ))
+                edges.append(
+                    CPGEdge(
+                        kind=EdgeKind.CONTAINS,
+                        source=node.parent_name,
+                        target=node.qualified_name,
+                        file_path=result.file_path,
+                    )
+                )
         return edges
 
     def _tests_edges(self, result: ParseResult) -> list[CPGEdge]:
         """Emit TESTS edges: test_foo() → foo() by convention."""
         edges = []
         test_nodes = [n for n in result.nodes if n.is_test or n.kind == NodeKind.TEST]
-        non_test = {n.name: n.qualified_name for n in result.nodes
-                    if not n.is_test and n.kind in (NodeKind.FUNCTION, NodeKind.METHOD)}
+        non_test = {
+            n.name: n.qualified_name
+            for n in result.nodes
+            if not n.is_test and n.kind in (NodeKind.FUNCTION, NodeKind.METHOD)
+        }
 
         for test in test_nodes:
             # test_create_user → create_user
             subject = test.name
             for prefix in ("test_", "test"):
                 if subject.startswith(prefix):
-                    candidate = subject[len(prefix):]
+                    candidate = subject[len(prefix) :]
                     if candidate in non_test:
-                        edges.append(CPGEdge(
-                            kind=EdgeKind.TESTS,
-                            source=test.qualified_name,
-                            target=non_test[candidate],
-                            file_path=result.file_path,
-                            confidence=0.7,
-                        ))
+                        edges.append(
+                            CPGEdge(
+                                kind=EdgeKind.TESTS,
+                                source=test.qualified_name,
+                                target=non_test[candidate],
+                                file_path=result.file_path,
+                                confidence=0.7,
+                            )
+                        )
                         break
         return edges
 
     def _ensure_file_node(self, file_path: str, language: str) -> None:
         if self.store.get_node(file_path) is None:
-            self.store.add_node(CPGNode(
-                qualified_name=file_path,
-                kind=NodeKind.FILE,
-                name=Path(file_path).name,
-                file_path=file_path,
-                language=language,
-            ))
+            self.store.add_node(
+                CPGNode(
+                    qualified_name=file_path,
+                    kind=NodeKind.FILE,
+                    name=Path(file_path).name,
+                    file_path=file_path,
+                    language=language,
+                )
+            )
 
     def _node_info_to_cpg(self, node: NodeInfo) -> CPGNode:
         return CPGNode(
@@ -234,17 +244,20 @@ class CPGBuilder:
     def _cfg_builder(self):
         if self._cfg is None:
             from graph.cfg_builder import CFGBuilder
+
             self._cfg = CFGBuilder(self.store)
         return self._cfg
 
     def _dfg_builder(self):
         if self._dfg is None:
             from graph.dfg_builder import DFGBuilder
+
             self._dfg = DFGBuilder(self.store)
         return self._dfg
 
     def _ep_detector(self):
         if self._ep is None:
             from graph.endpoint_detector import EndpointDetector
+
             self._ep = EndpointDetector()
         return self._ep

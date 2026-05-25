@@ -2,7 +2,6 @@
 
 import sys
 from pathlib import Path
-import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -14,7 +13,9 @@ def _make_store() -> GraphStore:
     return GraphStore(":memory:")
 
 
-def _sample_node(qname: str, kind: NodeKind = NodeKind.FUNCTION, file_path: str = "a.py") -> CPGNode:
+def _sample_node(
+    qname: str, kind: NodeKind = NodeKind.FUNCTION, file_path: str = "a.py"
+) -> CPGNode:
     return CPGNode(
         qualified_name=qname,
         kind=kind,
@@ -61,7 +62,7 @@ class TestGraphStore:
     def test_node_count_and_edge_count(self):
         store = _make_store()
         store.add_nodes([_sample_node(f"mod.func{i}") for i in range(5)])
-        store.add_edges([_sample_edge(f"mod.func{i}", f"mod.func{i+1}") for i in range(4)])
+        store.add_edges([_sample_edge(f"mod.func{i}", f"mod.func{i + 1}") for i in range(4)])
         assert store.node_count() == 5
         assert store.edge_count() == 4
 
@@ -107,7 +108,7 @@ class TestGraphStore:
 
 class TestCPGBuilder:
     def test_ingest_parse_result(self):
-        from core.types import EdgeInfo, NodeInfo, ParseResult
+        from core.types import NodeInfo, ParseResult
 
         store = _make_store()
         builder = CPGBuilder(store)

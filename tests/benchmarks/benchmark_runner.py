@@ -41,7 +41,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 import time
 import tracemalloc
@@ -49,13 +48,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 # ── Path setup ─────────────────────────────────────────────────────────────
-ROOT = Path(__file__).resolve().parent.parent.parent   # /CodeCortex/
+ROOT = Path(__file__).resolve().parent.parent.parent  # /CodeCortex/
 sys.path.insert(0, str(ROOT))
 
 RESULTS_PATH = ROOT / "docs" / "results.md"
 _DEFAULT_TARGET = ROOT / "code-review-graph" / "code_review_graph"
 
 # ── Helpers ────────────────────────────────────────────────────────────────
+
 
 def _ts() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -64,6 +64,7 @@ def _ts() -> str:
 def _rss_mb() -> float:
     try:
         import resource
+
         return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024 / 1024
     except Exception:
         return 0.0
@@ -75,11 +76,12 @@ def _collect_python_files(directory: Path) -> list[Path]:
 
 # ── Stage benchmarks ───────────────────────────────────────────────────────
 
+
 def bench_parse_and_build_cpg(py_files: list[Path], quiet: bool) -> dict:
     """Stage 1+3: Parse Python files and build CPG. Returns timing & graph stats."""
     from core.parsers.python_parser import PythonParser
-    from graph.graph_store import GraphStore
     from graph.cpg_builder import CPGBuilder
+    from graph.graph_store import GraphStore
 
     parser = PythonParser()
     store = GraphStore(":memory:")
@@ -107,14 +109,13 @@ def bench_parse_and_build_cpg(py_files: list[Path], quiet: bool) -> dict:
     edge_count = store.edge_count()
     files_processed = len(py_files)
 
-    from core.types import EdgeKind
     edge_breakdown: dict[str, int] = {}
     for edge in store.all_edges():
         k = edge.kind.value
         edge_breakdown[k] = edge_breakdown.get(k, 0) + 1
 
     density = (2 * edge_count / max(node_count * (node_count - 1), 1)) if node_count > 1 else 0
-    avg_degree = (2 * edge_count / max(node_count, 1))
+    avg_degree = 2 * edge_count / max(node_count, 1)
 
     if not quiet:
         print(f"  Files parsed : {files_processed}  (errors: {parse_errors})")
@@ -153,6 +154,7 @@ def bench_semantic_index(store, quiet: bool) -> dict:
 
     # Sample 50 random lookups
     import random
+
     sample = random.sample(all_nodes, min(50, len(all_nodes)))
     t1 = time.perf_counter()
     hits = 0
@@ -179,8 +181,8 @@ def bench_semantic_index(store, quiet: bool) -> dict:
 
 def bench_traversal(store, quiet: bool) -> dict:
     """Stage 5+6: BFS traversal latency and impact radius."""
-    from traversal.traversal_engine import TraversalEngine
     from core.types import TraversalConfig
+    from traversal.traversal_engine import TraversalEngine
 
     engine = TraversalEngine(store, enable_memoization=False)
     all_nodes = store.all_nodes()
@@ -188,6 +190,7 @@ def bench_traversal(store, quiet: bool) -> dict:
         return {"avg_bfs_ms": 0, "avg_impact_ms": 0}
 
     import random
+
     sample = random.sample(all_nodes, min(20, len(all_nodes)))
     names = [n.qualified_name for n in sample]
 
@@ -233,15 +236,14 @@ def bench_ranking(store, quiet: bool) -> dict:
     pr_values = [s.influence_score for s in scores.values()]
     mean_pr = sum(pr_values) / len(pr_values)
     variance = sum((x - mean_pr) ** 2 for x in pr_values) / len(pr_values)
-    pr_std = variance ** 0.5
+    pr_std = variance**0.5
 
     top_list = [
         {"name": s.qualified_name.split("/")[-1][:60], "score": round(s.composite_score, 5)}
         for s in top[:10]
     ]
     hotspot_list = [
-        {"name": s.qualified_name.split("/")[-1][:60], "fan_in": s.fan_in}
-        for s in hotspots[:5]
+        {"name": s.qualified_name.split("/")[-1][:60], "fan_in": s.fan_in} for s in hotspots[:5]
     ]
 
     if not quiet:
@@ -256,7 +258,7 @@ def bench_ranking(store, quiet: bool) -> dict:
         "pagerank_std": round(pr_std, 6),
         "top_nodes": top_list,
         "hotspots": hotspot_list,
-        "_scores": scores,   # passed to bench_retrieval to avoid recompute
+        "_scores": scores,  # passed to bench_retrieval to avoid recompute
     }
 
 
@@ -268,8 +270,8 @@ def bench_retrieval(store, quiet: bool, precomputed_centrality: dict = None) -> 
     - AdjacencyCache (in-memory edge maps, avoids per-hop SQL)
     - Pre-computed centrality (injected from bench_ranking to skip 7s recompute)
     """
-    from embeddings.provider_factory import EmbeddingConfig
     from embeddings.embedding_pipeline import EmbeddingPipeline
+    from embeddings.provider_factory import EmbeddingConfig
     from retrieval.retrieval_layer import RetrievalConfig, RetrievalLayer
     from traversal.traversal_engine import AdjacencyCache
 
@@ -315,8 +317,12 @@ def bench_retrieval(store, quiet: bool, precomputed_centrality: dict = None) -> 
 
     embedded = stats.nodes_embedded
     if not quiet:
-        print(f"  Embed build  : {embed_time:.3f}s  ({embedded} nodes, {stats.nodes_skipped} skipped)")
-        print(f"  Retrieval    : {retrieval_ms:.3f} ms/query (avg results: {sum(result_counts)//len(result_counts)})")
+        print(
+            f"  Embed build  : {embed_time:.3f}s  ({embedded} nodes, {stats.nodes_skipped} skipped)"
+        )
+        print(
+            f"  Retrieval    : {retrieval_ms:.3f} ms/query (avg results: {sum(result_counts) // len(result_counts)})"
+        )
 
     return {
         "embed_build_s": round(embed_time, 3),
@@ -327,6 +333,7 @@ def bench_retrieval(store, quiet: bool, precomputed_centrality: dict = None) -> 
 
 
 # ── Composite score ─────────────────────────────────────────────────────────
+
 
 def _composite_score(cpg: dict, idx: dict, trav: dict, rank: dict, retr: dict) -> float:
     """
@@ -353,17 +360,12 @@ def _composite_score(cpg: dict, idx: dict, trav: dict, rank: dict, retr: dict) -
     pr_std = rank.get("pagerank_std", 0)
     ranking = min(pr_std * 100, 1.0)
 
-    score = (
-        0.25 * retrieval
-        + 0.25 * graph
-        + 0.20 * semantic
-        + 0.15 * efficiency
-        + 0.15 * ranking
-    )
+    score = 0.25 * retrieval + 0.25 * graph + 0.20 * semantic + 0.15 * efficiency + 0.15 * ranking
     return round(score, 4)
 
 
 # ── Markdown formatter ──────────────────────────────────────────────────────
+
 
 def _format_results_entry(
     phase_label: str,
@@ -379,21 +381,26 @@ def _format_results_entry(
     rss = round(_rss_mb(), 1)
 
     edge_bd = cpg.get("edge_breakdown", {})
-    edge_lines = "\n".join(
-        f"    - {k}: {v}" for k, v in sorted(edge_bd.items(), key=lambda x: -x[1])
-    ) or "    - (none)"
+    edge_lines = (
+        "\n".join(f"    - {k}: {v}" for k, v in sorted(edge_bd.items(), key=lambda x: -x[1]))
+        or "    - (none)"
+    )
 
     top_nodes = rank.get("top_nodes", [])
-    top_lines = "\n".join(
-        f"    {i+1}. `{r['name']}` — {r['score']}"
-        for i, r in enumerate(top_nodes[:10])
-    ) or "    (none)"
+    top_lines = (
+        "\n".join(
+            f"    {i + 1}. `{r['name']}` — {r['score']}" for i, r in enumerate(top_nodes[:10])
+        )
+        or "    (none)"
+    )
 
     hotspots = rank.get("hotspots", [])
-    hotspot_lines = "\n".join(
-        f"    {i+1}. `{r['name']}` (fan_in={r['fan_in']})"
-        for i, r in enumerate(hotspots[:5])
-    ) or "    (none)"
+    hotspot_lines = (
+        "\n".join(
+            f"    {i + 1}. `{r['name']}` (fan_in={r['fan_in']})" for i, r in enumerate(hotspots[:5])
+        )
+        or "    (none)"
+    )
 
     return f"""
 ---
@@ -408,26 +415,26 @@ def _format_results_entry(
 
 | Metric | Value |
 |--------|-------|
-| Index Build Time | {cpg['build_time_s']} s |
-| Peak Memory (traced) | {cpg['peak_mem_mb']} MB |
-| Throughput | {cpg['throughput_files_per_s']} files/s |
-| Parse Errors | {cpg['parse_errors']} / {cpg['files']} |
-| Avg BFS Latency | {trav['avg_bfs_ms']} ms |
-| Avg Impact-Radius Latency | {trav['avg_impact_ms']} ms |
-| Embed Build Time | {retr['embed_build_s']} s ({retr['embedded_nodes']} nodes) |
-| Avg Retrieval Latency | {retr['avg_retrieval_ms']} ms/query |
-| Ranking Computation | {rank['ranking_time_s']} s |
+| Index Build Time | {cpg["build_time_s"]} s |
+| Peak Memory (traced) | {cpg["peak_mem_mb"]} MB |
+| Throughput | {cpg["throughput_files_per_s"]} files/s |
+| Parse Errors | {cpg["parse_errors"]} / {cpg["files"]} |
+| Avg BFS Latency | {trav["avg_bfs_ms"]} ms |
+| Avg Impact-Radius Latency | {trav["avg_impact_ms"]} ms |
+| Embed Build Time | {retr["embed_build_s"]} s ({retr["embedded_nodes"]} nodes) |
+| Avg Retrieval Latency | {retr["avg_retrieval_ms"]} ms/query |
+| Ranking Computation | {rank["ranking_time_s"]} s |
 
 ### 2.2 Graph Metrics
 
 | Metric | Value |
 |--------|-------|
-| Node Coverage | {cpg['nodes']} nodes |
-| Edge Fidelity | {cpg['edges']} edges |
-| Graph Density | {cpg['density']} |
-| Average Degree | {cpg['avg_degree']} |
-| Nodes Scored (Centrality) | {rank.get('nodes_scored', 'n/a')} |
-| PageRank Std Dev | {rank.get('pagerank_std', 'n/a')} |
+| Node Coverage | {cpg["nodes"]} nodes |
+| Edge Fidelity | {cpg["edges"]} edges |
+| Graph Density | {cpg["density"]} |
+| Average Degree | {cpg["avg_degree"]} |
+| Nodes Scored (Centrality) | {rank.get("nodes_scored", "n/a")} |
+| PageRank Std Dev | {rank.get("pagerank_std", "n/a")} |
 
 **Edge type breakdown:**
 {edge_lines}
@@ -436,10 +443,10 @@ def _format_results_entry(
 
 | Metric | Value |
 |--------|-------|
-| Semantic Index Build | {idx['index_build_s']} s |
-| Symbol Lookup Latency | {idx['lookup_latency_ms']} ms |
-| Avg Results / Query | {retr['avg_results_per_query']} |
-| Embedded Nodes | {retr['embedded_nodes']} |
+| Semantic Index Build | {idx["index_build_s"]} s |
+| Symbol Lookup Latency | {idx["lookup_latency_ms"]} ms |
+| Avg Results / Query | {retr["avg_results_per_query"]} |
+| Embedded Nodes | {retr["embedded_nodes"]} |
 
 *Note: Precision@K and Recall@K require an annotated gold dataset (not yet available).*
 *Stub embeddings used — semantic scores are structural proxies only.*
@@ -461,17 +468,18 @@ score = 0.25×retrieval + 0.25×graph + 0.20×semantic + 0.15×efficiency + 0.15
 
 | Dimension | Sub-score |
 |-----------|-----------|
-| Retrieval Quality | {min(retr.get('avg_results_per_query', 0) / 10.0, 1.0):.4f} |
-| Graph Quality (edge/node ratio) | {min(cpg['edges'] / max(cpg['nodes'], 1) / 2.0, 1.0):.4f} |
-| Semantic Coverage (nodes/file) | {min(cpg['nodes'] / max(cpg['files'], 1) / 10.0, 1.0):.4f} |
-| Efficiency (build speed) | {max(0.0, 1.0 - cpg['build_time_s'] / 10.0):.4f} |
-| Ranking Discrimination | {min(rank.get('pagerank_std', 0) * 100, 1.0):.4f} |
+| Retrieval Quality | {min(retr.get("avg_results_per_query", 0) / 10.0, 1.0):.4f} |
+| Graph Quality (edge/node ratio) | {min(cpg["edges"] / max(cpg["nodes"], 1) / 2.0, 1.0):.4f} |
+| Semantic Coverage (nodes/file) | {min(cpg["nodes"] / max(cpg["files"], 1) / 10.0, 1.0):.4f} |
+| Efficiency (build speed) | {max(0.0, 1.0 - cpg["build_time_s"] / 10.0):.4f} |
+| Ranking Discrimination | {min(rank.get("pagerank_std", 0) * 100, 1.0):.4f} |
 | **COMPOSITE** | **{composite}** |
 
 """
 
 
 # ── Main ────────────────────────────────────────────────────────────────────
+
 
 def main():
     parser = argparse.ArgumentParser(description="CodeCortex performance benchmark")
@@ -498,6 +506,7 @@ def main():
         if arch_file.exists():
             content = arch_file.read_text()
             import re
+
             done = re.findall(r"Phase (\d+)[^\|]*\| ✅", content)
             if done:
                 phase_label = f"Phases 1–{done[-1]} Complete"
@@ -507,12 +516,12 @@ def main():
             phase_label = "Baseline Evaluation"
 
     if not args.quiet:
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"  CodeCortex Benchmark — {phase_label}")
         print(f"  {_ts()}")
         print(f"  Target: {target_dir}")
         print(f"  Files : {len(py_files)} Python files")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
     # Stage 1+3: Parse & CPG
     if not args.quiet:
@@ -544,9 +553,9 @@ def main():
     composite = _composite_score(cpg, idx, trav, rank, retr)
 
     if not args.quiet:
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"  COMPOSITE CodeCortex Score: {composite}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
     # Write to results.md
     entry = _format_results_entry(phase_label, py_files, cpg, idx, trav, rank, retr, composite)

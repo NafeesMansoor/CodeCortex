@@ -22,42 +22,47 @@ logger = logging.getLogger(__name__)
 # Data types
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class SymbolDefinition:
     """A symbol defined somewhere in the repository."""
+
     qualified_name: str
     kind: NodeKind
     file_path: str
     line: int
     column: int = 0
     language: str = ""
-    module_path: str = ""   # dotted module name, e.g. "pkg.sub.module"
+    module_path: str = ""  # dotted module name, e.g. "pkg.sub.module"
     display_name: str = ""  # short unqualified name
 
 
 @dataclass
 class SymbolOccurrence:
     """A use (reference or definition) of a symbol at a source location."""
-    symbol: str         # qualified name of the referenced symbol
+
+    symbol: str  # qualified name of the referenced symbol
     file_path: str
     line: int
     column: int
-    role: str = "reference"   # "definition" | "reference" | "write" | "read"
+    role: str = "reference"  # "definition" | "reference" | "write" | "read"
 
 
 @dataclass
 class IndexResult:
     """Normalised output from any indexing provider."""
+
     definitions: list[SymbolDefinition] = field(default_factory=list)
     occurrences: list[SymbolOccurrence] = field(default_factory=list)
     language: str = ""
-    source: str = ""    # "scip" | "lsp" | "jedi" | "tree-sitter"
+    source: str = ""  # "scip" | "lsp" | "jedi" | "tree-sitter"
     errors: list[str] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
 # Abstract base
 # ---------------------------------------------------------------------------
+
 
 class IndexingProvider(ABC):
     """Base class for all semantic indexing backends."""
@@ -101,6 +106,7 @@ class IndexingProvider(ABC):
 # Provider registry
 # ---------------------------------------------------------------------------
 
+
 class ProviderRegistry:
     """Maintains a priority-ordered list of IndexingProviders.
 
@@ -135,8 +141,8 @@ class ProviderRegistry:
 # ---------------------------------------------------------------------------
 
 _LANGUAGE_EXTENSIONS: dict[str, list[str]] = {
-    "python":     [".py"],
+    "python": [".py"],
     "javascript": [".js", ".jsx", ".mjs", ".cjs"],
     "typescript": [".ts", ".tsx"],
-    "php":        [".php"],
+    "php": [".php"],
 }

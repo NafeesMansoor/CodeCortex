@@ -107,7 +107,8 @@ def main(argv=None) -> int:
         print(f"ERROR: target directory does not exist: {target}", file=sys.stderr)
         return 1
 
-    from codecortex.config import CodeCortexConfig, find_config, load as load_config
+    from codecortex.config import CodeCortexConfig, find_config
+    from codecortex.config import load as load_config
 
     config_path = args.config or find_config(target)
     cc_config = load_config(config_path) if config_path else CodeCortexConfig()
@@ -129,7 +130,10 @@ def main(argv=None) -> int:
         print(f"\nBuilding index for {target} …", file=sys.stderr)
 
     from pipeline.context_builder import CodeCortexPipeline
-    pipeline = CodeCortexPipeline.from_directory(target, config=pipeline_cfg, languages=args.languages)
+
+    pipeline = CodeCortexPipeline.from_directory(
+        target, config=pipeline_cfg, languages=args.languages
+    )
 
     if not args.quiet:
         print("Index ready.\n", file=sys.stderr)
@@ -141,6 +145,7 @@ def main(argv=None) -> int:
         summary = pipeline.impact(args.impact, max_depth=args.bfs_depth)
         if args.json:
             import json
+
             print(json.dumps(summary.to_dict(), indent=2))
         else:
             d = summary.to_dict()
@@ -157,6 +162,7 @@ def main(argv=None) -> int:
     if args.json:
         results = pipeline.retrieve(args.query)
         import json
+
         print(json.dumps([r.to_dict() for r in results], indent=2))
     else:
         context = pipeline.query(args.query, max_tokens=args.max_tokens)

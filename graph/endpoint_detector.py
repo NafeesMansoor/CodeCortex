@@ -20,21 +20,26 @@ Usage:
 
 from __future__ import annotations
 
-import re
 import logging
+import re
 from pathlib import Path
 from typing import Optional
 
 from core.types import NodeKind, SourceRange
 from graph.schema import CPGNode
 
+
+def _children(node) -> list:
+    return [node.child(i) for i in range(node.child_count())]
+
+
 logger = logging.getLogger(__name__)
 
 # FastAPI / Flask / Starlette decorator patterns
 _PYTHON_ROUTE_PATTERNS = [
-    re.compile(r'@\w+\.(get|post|put|patch|delete|head|options)\s*\(', re.I),
-    re.compile(r'@\w+\.route\s*\(', re.I),
-    re.compile(r'@api_view\s*\(', re.I),
+    re.compile(r"@\w+\.(get|post|put|patch|delete|head|options)\s*\(", re.I),
+    re.compile(r"@\w+\.route\s*\(", re.I),
+    re.compile(r"@api_view\s*\(", re.I),
 ]
 
 _HTTP_METHODS = {"get", "post", "put", "patch", "delete", "head", "options"}
@@ -78,27 +83,31 @@ class EndpointDetector:
         self, tree, source: str, file_path: str, func_name_map: dict[str, str]
     ) -> list[CPGNode]:
         endpoints: list[CPGNode] = []
-        lines = source.splitlines() if isinstance(source, str) else source.decode().splitlines()
+        source.splitlines() if isinstance(source, str) else source.decode().splitlines()
 
         # Walk tree-sitter decorated functions
-        self._walk_python(tree.root_node, source, file_path,
-                          func_name_map, endpoints, parent_decorators=[])
+        self._walk_python(
+            tree.root_node(), source, file_path, func_name_map, endpoints, parent_decorators=[]
+        )
         return endpoints
 
     def _walk_python(
-        self, node, source: str, file_path: str,
+        self,
+        node,
+        source: str,
+        file_path: str,
         func_name_map: dict[str, str],
         endpoints: list[CPGNode],
         parent_decorators: list[str],
     ) -> None:
-        if node.type == "decorated_definition":
+        if node.kind() == "decorated_definition":
             decorators = []
             inner = None
-            for child in node.children:
-                if child.type == "decorator":
+            for child in _children(node):
+                if child.kind() == "decorator":
                     dec_text = _text(child, source)
                     decorators.append(dec_text)
-                elif child.type in ("function_definition", "async_function_definition"):
+                elif child.kind() in ("function_definition", "async_function_definition"):
                     inner = child
             if inner:
                 ep = self._python_endpoint_from_decorators(
@@ -107,16 +116,17 @@ class EndpointDetector:
                 if ep:
                     endpoints.append(ep)
                 # Recurse into function body
-                self._walk_python(inner, source, file_path,
-                                   func_name_map, endpoints, [])
+                self._walk_python(inner, source, file_path, func_name_map, endpoints, [])
                 return
 
-        for child in node.children:
-            self._walk_python(child, source, file_path,
-                              func_name_map, endpoints, [])
+        for child in _children(node):
+            self._walk_python(child, source, file_path, func_name_map, endpoints, [])
 
     def _python_endpoint_from_decorators(
-        self, func_node, source: str, file_path: str,
+        self,
+        func_node,
+        source: str,
+        file_path: str,
         func_name_map: dict[str, str],
         decorators: list[str],
     ) -> Optional[CPGNode]:
@@ -140,8 +150,8 @@ class EndpointDetector:
                         name=func_name,
                         file_path=file_path,
                         range=SourceRange(
-                            func_node.start_point[0] + 1,
-                            func_node.end_point[0] + 1,
+                            func_node.start_position().row + 1,
+                            func_node.end_position().row + 1,
                         ),
                         extra={
                             "http_method": http_method,
@@ -163,20 +173,22 @@ class EndpointDetector:
         for m in _PHP_ROUTE_PATTERNS.finditer(text):
             method = m.group(1).upper()
             path = m.group(2)
-            lineno = text[:m.start()].count("\n") + 1
+            lineno = text[: m.start()].count("\n") + 1
             qname = f"laravel.route.{method.lower()}.{path.strip('/').replace('/', '_')}"
-            endpoints.append(CPGNode(
-                qualified_name=qname,
-                kind=NodeKind.ENDPOINT,
-                name=path,
-                file_path=file_path,
-                range=SourceRange(lineno, lineno),
-                extra={
-                    "http_method": method,
-                    "path": path,
-                    "framework": "laravel",
-                },
-            ))
+            endpoints.append(
+                CPGNode(
+                    qualified_name=qname,
+                    kind=NodeKind.ENDPOINT,
+                    name=path,
+                    file_path=file_path,
+                    range=SourceRange(lineno, lineno),
+                    extra={
+                        "http_method": method,
+                        "path": path,
+                        "framework": "laravel",
+                    },
+                )
+            )
         return endpoints
 
     # ------------------------------------------------------------------
@@ -184,31 +196,35 @@ class EndpointDetector:
     # ------------------------------------------------------------------
 
     def _detect_js_ts(
-        self, tree, source: str, file_path: str,
+        self,
+        tree,
+        source: str,
+        file_path: str,
         func_name_map: dict[str, str],
     ) -> list[CPGNode]:
         endpoints: list[CPGNode] = []
 
         # Next.js API route: any exported function from pages/api/ or app/**/route.ts
         if _NEXTJS_API_PATH.search(file_path.replace("\\", "/")):
-            for export_name in ["GET", "POST", "PUT", "PATCH", "DELETE",
-                                 "default", "handler"]:
+            for export_name in ["GET", "POST", "PUT", "PATCH", "DELETE", "default", "handler"]:
                 qname = func_name_map.get(export_name, export_name)
                 if qname != export_name or self._node_exists(qname):
-                    endpoints.append(CPGNode(
-                        qualified_name=f"{qname}__endpoint",
-                        kind=NodeKind.ENDPOINT,
-                        name=export_name,
-                        file_path=file_path,
-                        extra={
-                            "http_method": export_name if export_name in
-                                           {m.upper() for m in _HTTP_METHODS}
-                                           else "ANY",
-                            "path": _nextjs_route_path(file_path),
-                            "framework": "nextjs",
-                            "handler": qname,
-                        },
-                    ))
+                    endpoints.append(
+                        CPGNode(
+                            qualified_name=f"{qname}__endpoint",
+                            kind=NodeKind.ENDPOINT,
+                            name=export_name,
+                            file_path=file_path,
+                            extra={
+                                "http_method": export_name
+                                if export_name in {m.upper() for m in _HTTP_METHODS}
+                                else "ANY",
+                                "path": _nextjs_route_path(file_path),
+                                "framework": "nextjs",
+                                "handler": qname,
+                            },
+                        )
+                    )
 
         # Express: app.get / router.post patterns
         text = source if isinstance(source, str) else source.decode()
@@ -219,20 +235,22 @@ class EndpointDetector:
         for m in express_pat.finditer(text):
             method = m.group(1).upper()
             path = m.group(2)
-            lineno = text[:m.start()].count("\n") + 1
+            lineno = text[: m.start()].count("\n") + 1
             qname = f"express.route.{method.lower()}.{path.strip('/').replace('/', '_')}"
-            endpoints.append(CPGNode(
-                qualified_name=qname,
-                kind=NodeKind.ENDPOINT,
-                name=path,
-                file_path=file_path,
-                range=SourceRange(lineno, lineno),
-                extra={
-                    "http_method": method,
-                    "path": path,
-                    "framework": "express",
-                },
-            ))
+            endpoints.append(
+                CPGNode(
+                    qualified_name=qname,
+                    kind=NodeKind.ENDPOINT,
+                    name=path,
+                    file_path=file_path,
+                    range=SourceRange(lineno, lineno),
+                    extra={
+                        "http_method": method,
+                        "path": path,
+                        "framework": "express",
+                    },
+                )
+            )
 
         return endpoints
 
@@ -246,6 +264,7 @@ class EndpointDetector:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _extract_http_method(decorator: str) -> str:
     for method in _HTTP_METHODS:
@@ -264,7 +283,7 @@ def _nextjs_route_path(file_path: str) -> str:
     for prefix in ("pages/api/", "app/"):
         idx = fp.find(prefix)
         if idx != -1:
-            path = fp[idx + len(prefix):]
+            path = fp[idx + len(prefix) :]
             path = re.sub(r"\.[jt]sx?$", "", path)
             path = re.sub(r"/route$", "", path)
             path = re.sub(r"\[([^\]]+)\]", r"{\1}", path)
@@ -273,12 +292,12 @@ def _nextjs_route_path(file_path: str) -> str:
 
 
 def _identifier(node, source: str) -> str:
-    for child in node.children:
-        if child.type == "identifier":
+    for child in _children(node):
+        if child.kind() == "identifier":
             return _text(child, source)
     return ""
 
 
 def _text(node, source: str) -> str:
-    raw = source[node.start_byte:node.end_byte]
+    raw = source[node.start_byte() : node.end_byte()]
     return raw.decode() if isinstance(raw, bytes) else raw

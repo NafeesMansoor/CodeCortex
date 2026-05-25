@@ -99,7 +99,8 @@ def main(argv=None) -> int:
         return 1
 
     # Load YAML config if provided, then apply CLI overrides
-    from codecortex.config import CodeCortexConfig, find_config, load as load_config
+    from codecortex.config import CodeCortexConfig, find_config
+    from codecortex.config import load as load_config
 
     config_path = args.config or find_config(target)
     cc_config = load_config(config_path) if config_path else CodeCortexConfig()
@@ -121,7 +122,7 @@ def main(argv=None) -> int:
         mode_label = "CPG (CFG+DFG)" if cc_config.enable_cpg else "LSP (call+import)"
         if cc_config.on_demand_cfg or cc_config.on_demand_dfg:
             mode_label += " + on-demand CFG/DFG"
-        print(f"\nCodeCortex Indexer")
+        print("\nCodeCortex Indexer")
         print(f"  Target   : {target}")
         print(f"  Mode     : {mode_label}")
         print(f"  Embeddings : {'yes' if cc_config.enable_embeddings else 'no'}")
@@ -147,6 +148,7 @@ def main(argv=None) -> int:
         snap_path = Path(args.save_snapshot)
         snap_path.parent.mkdir(parents=True, exist_ok=True)
         from performance.graph_snapshot import GraphSnapshot
+
         snap = GraphSnapshot(pipeline.graph_store)
         mtimes = {str(f): f.stat().st_mtime for f in pipeline._indexed_files if f.exists()}
         n = snap.save(snap_path, file_mtimes=mtimes)

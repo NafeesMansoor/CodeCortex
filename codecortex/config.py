@@ -86,7 +86,9 @@ def load(path: str | Path) -> CodeCortexConfig:
     try:
         import yaml
     except ImportError:
-        print("PyYAML not installed — using default config. Run: pip install pyyaml", file=sys.stderr)
+        print(
+            "PyYAML not installed — using default config. Run: pip install pyyaml", file=sys.stderr
+        )
         return CodeCortexConfig()
 
     raw = yaml.safe_load(path.read_text()) or {}

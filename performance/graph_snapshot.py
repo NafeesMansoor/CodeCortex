@@ -57,8 +57,8 @@ class GraphSnapshot:
 
     def load(self, path: Path) -> dict[str, float]:
         """Load snapshot into the store. Returns stored file_mtimes dict."""
-        from core.types import NodeKind, EdgeKind
-        from graph.schema import CPGNode, CPGEdge
+        from core.types import EdgeKind, NodeKind
+        from graph.schema import CPGEdge, CPGNode
 
         path = Path(path)
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -91,7 +91,9 @@ class GraphSnapshot:
 
         logger.info(
             "Snapshot loaded: %d nodes, %d edges from %s",
-            len(data["nodes"]), len(data["edges"]), path,
+            len(data["nodes"]),
+            len(data["edges"]),
+            path,
         )
         return data.get("file_mtimes", {})
 

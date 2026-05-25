@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import contextlib
 import sqlite3
-import time
 from pathlib import Path
 from typing import Optional
 
@@ -62,51 +61,55 @@ class SymbolCache:
 
     def put(self, defn: SymbolDefinition, file_mtime: float = 0.0) -> None:
         with self._tx():
-            self._conn.execute("""
+            self._conn.execute(
+                """
                 INSERT OR REPLACE INTO symbols
                   (qualified_name, kind, file_path, line, col,
                    language, module_path, display_name, mtime)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                defn.qualified_name,
-                defn.kind.value,
-                defn.file_path,
-                defn.line,
-                defn.column,
-                defn.language,
-                defn.module_path,
-                defn.display_name or defn.qualified_name.rsplit(".", 1)[-1],
-                file_mtime,
-            ))
+            """,
+                (
+                    defn.qualified_name,
+                    defn.kind.value,
+                    defn.file_path,
+                    defn.line,
+                    defn.column,
+                    defn.language,
+                    defn.module_path,
+                    defn.display_name or defn.qualified_name.rsplit(".", 1)[-1],
+                    file_mtime,
+                ),
+            )
 
     def put_many(self, definitions: list[SymbolDefinition], file_mtime: float = 0.0) -> None:
         with self._tx():
-            self._conn.executemany("""
+            self._conn.executemany(
+                """
                 INSERT OR REPLACE INTO symbols
                   (qualified_name, kind, file_path, line, col,
                    language, module_path, display_name, mtime)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, [
-                (
-                    d.qualified_name,
-                    d.kind.value,
-                    d.file_path,
-                    d.line,
-                    d.column,
-                    d.language,
-                    d.module_path,
-                    d.display_name or d.qualified_name.rsplit(".", 1)[-1],
-                    file_mtime,
-                )
-                for d in definitions
-            ])
+            """,
+                [
+                    (
+                        d.qualified_name,
+                        d.kind.value,
+                        d.file_path,
+                        d.line,
+                        d.column,
+                        d.language,
+                        d.module_path,
+                        d.display_name or d.qualified_name.rsplit(".", 1)[-1],
+                        file_mtime,
+                    )
+                    for d in definitions
+                ],
+            )
 
     def invalidate_file(self, file_path: str) -> None:
         """Drop all symbols from file_path (call before re-indexing it)."""
         with self._tx():
-            self._conn.execute(
-                "DELETE FROM symbols WHERE file_path = ?", (file_path,)
-            )
+            self._conn.execute("DELETE FROM symbols WHERE file_path = ?", (file_path,))
 
     def invalidate_if_changed(self, file_path: str) -> bool:
         """Drop symbols for file_path if the file's mtime has changed.

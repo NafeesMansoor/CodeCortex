@@ -43,6 +43,7 @@ def _ts() -> str:
 def _rss_mb() -> float:
     try:
         import resource
+
         return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024 / 1024
     except Exception:
         return 0.0
@@ -54,11 +55,12 @@ def _collect_python_files(directory: Path) -> list[Path]:
 
 # ── Stage runners ─────────────────────────────────────────────────────────────
 
+
 def stage1_lsp(py_files: list[Path], quiet: bool) -> dict:
     """Stage 1: LSP-mode graph — call + import, no CFG/DFG."""
     from core.parsers.python_parser import PythonParser
-    from graph.graph_store import GraphStore
     from graph.cpg_builder import CPGBuilder
+    from graph.graph_store import GraphStore
     from indexing.semantic_index import SemanticIndex
 
     parser = PythonParser()
@@ -82,6 +84,7 @@ def stage1_lsp(py_files: list[Path], quiet: bool) -> dict:
 
     idx = SemanticIndex(store)
     import random
+
     nodes = store.all_nodes()
     sample = random.sample(nodes, min(50, len(nodes)))
     t1 = time.perf_counter()
@@ -89,7 +92,6 @@ def stage1_lsp(py_files: list[Path], quiet: bool) -> dict:
         idx.lookup(n.qualified_name)
     lookup_ms = (time.perf_counter() - t1) / len(sample) * 1000 if sample else 0
 
-    from core.types import EdgeKind
     edge_bd: dict[str, int] = {}
     for e in store.all_edges():
         edge_bd[e.kind.value] = edge_bd.get(e.kind.value, 0) + 1
@@ -105,7 +107,8 @@ def stage1_lsp(py_files: list[Path], quiet: bool) -> dict:
 
     return {
         "store": store,
-        "nodes": n_nodes, "edges": n_edges,
+        "nodes": n_nodes,
+        "edges": n_edges,
         "build_time_s": round(build_time, 3),
         "peak_mem_mb": round(peak / 1024 / 1024, 2),
         "density": round(density, 6),
@@ -119,8 +122,8 @@ def stage1_lsp(py_files: list[Path], quiet: bool) -> dict:
 def stage2_cpg(py_files: list[Path], quiet: bool) -> dict:
     """Stage 2: Full CPG — AST + CFG + DFG + Endpoints."""
     from core.parsers.python_parser import PythonParser
-    from graph.graph_store import GraphStore
     from graph.cpg_builder import CPGBuilder
+    from graph.graph_store import GraphStore
 
     parser = PythonParser()
     store = GraphStore(":memory:")
@@ -156,7 +159,8 @@ def stage2_cpg(py_files: list[Path], quiet: bool) -> dict:
 
     return {
         "store": store,
-        "nodes": n_nodes, "edges": n_edges,
+        "nodes": n_nodes,
+        "edges": n_edges,
         "build_time_s": round(build_time, 3),
         "peak_mem_mb": round(peak / 1024 / 1024, 2),
         "density": round(density, 6),
@@ -168,8 +172,8 @@ def stage2_cpg(py_files: list[Path], quiet: bool) -> dict:
 
 def stage3_embeddings(store, quiet: bool) -> dict:
     """Stage 3: FAISS embedding index."""
-    from embeddings.provider_factory import EmbeddingConfig
     from embeddings.embedding_pipeline import EmbeddingPipeline
+    from embeddings.provider_factory import EmbeddingConfig
     from retrieval.retrieval_layer import RetrievalConfig, RetrievalLayer
     from traversal.traversal_engine import AdjacencyCache
 
@@ -215,15 +219,19 @@ def stage3_embeddings(store, quiet: bool) -> dict:
 
 def stage4_clustering(emb_pipeline, quiet: bool) -> dict:
     """Stage 4: HDBSCAN clustering + quality evaluation."""
-    from clustering.semantic_clusters import SemanticClusterer, ClusterConfig
     from clustering.cluster_labeler import ClusterLabeler
     from clustering.cluster_quality import ClusterQualityEvaluator
+    from clustering.semantic_clusters import ClusterConfig, SemanticClusterer
 
     emb_store = emb_pipeline.embedding_store
     if emb_store.size() < 10:
         return {
-            "n_clusters": 0, "n_noise": 0, "noise_ratio": 1.0,
-            "silhouette": 0.0, "mean_cohesion": 0.0, "cluster_time_s": 0.0,
+            "n_clusters": 0,
+            "n_noise": 0,
+            "noise_ratio": 1.0,
+            "silhouette": 0.0,
+            "mean_cohesion": 0.0,
+            "cluster_time_s": 0.0,
         }
 
     clusterer = SemanticClusterer(ClusterConfig(min_cluster_size=5))
@@ -242,7 +250,9 @@ def stage4_clustering(emb_pipeline, quiet: bool) -> dict:
 
         if not quiet:
             print(f"  Clusters   : {len(result.clusters)}  noise: {n_noise}/{n_total}")
-            print(f"  Silhouette : {report.silhouette_score:.4f}   Cohesion: {report.mean_cohesion:.4f}")
+            print(
+                f"  Silhouette : {report.silhouette_score:.4f}   Cohesion: {report.mean_cohesion:.4f}"
+            )
 
         return {
             "n_clusters": len(result.clusters),
@@ -257,16 +267,21 @@ def stage4_clustering(emb_pipeline, quiet: bool) -> dict:
         if not quiet:
             print(f"  Clustering failed: {e}")
         return {
-            "n_clusters": 0, "n_noise": 0, "noise_ratio": 1.0,
-            "silhouette": 0.0, "mean_cohesion": 0.0, "cluster_time_s": 0.0,
+            "n_clusters": 0,
+            "n_noise": 0,
+            "noise_ratio": 1.0,
+            "silhouette": 0.0,
+            "mean_cohesion": 0.0,
+            "cluster_time_s": 0.0,
         }
 
 
 def stage5_traversal(store, adj, quiet: bool) -> dict:
     """Stage 5: Bounded BFS, impact radius, taint traversal."""
-    from traversal.traversal_engine import TraversalEngine
-    from core.types import TraversalConfig
     import random
+
+    from core.types import TraversalConfig
+    from traversal.traversal_engine import TraversalEngine
 
     engine = TraversalEngine(store, enable_memoization=False, adjacency_cache=adj)
     nodes = store.all_nodes()
@@ -329,8 +344,14 @@ def stage6_centrality(store, quiet: bool) -> dict:
     rank_time = time.perf_counter() - t0
 
     if not scores:
-        return {"rank_time_s": 0, "nodes_scored": 0, "pagerank_std": 0,
-                "top_nodes": [], "hotspots": [], "scores": {}}
+        return {
+            "rank_time_s": 0,
+            "nodes_scored": 0,
+            "pagerank_std": 0,
+            "top_nodes": [],
+            "hotspots": [],
+            "scores": {},
+        }
 
     top = engine.top_nodes(scores, n=10)
     hotspots = engine.hotspots(scores, n=5)
@@ -346,13 +367,20 @@ def stage6_centrality(store, quiet: bool) -> dict:
     comp_std = (sum((x - mean_c) ** 2 for x in composite_vals) / len(composite_vals)) ** 0.5
 
     top_list = [
-        {"name": s.qualified_name.split("/")[-1][:55], "score": round(s.composite_score, 5),
-         "fan_in": s.fan_in, "stability": round(s.stability_score, 3)}
+        {
+            "name": s.qualified_name.split("/")[-1][:55],
+            "score": round(s.composite_score, 5),
+            "fan_in": s.fan_in,
+            "stability": round(s.stability_score, 3),
+        }
         for s in top[:10]
     ]
     hotspot_list = [
-        {"name": s.qualified_name.split("/")[-1][:55], "fan_in": s.fan_in,
-         "bridge": round(s.bridge_score, 5)}
+        {
+            "name": s.qualified_name.split("/")[-1][:55],
+            "fan_in": s.fan_in,
+            "bridge": round(s.bridge_score, 5),
+        }
         for s in hotspots[:5]
     ]
 
@@ -376,6 +404,7 @@ def stage6_centrality(store, quiet: bool) -> dict:
 
 # ── Composite score ───────────────────────────────────────────────────────────
 
+
 def composite_score(s1: dict, s2: dict, s3: dict, s4: dict, s5: dict, s6: dict) -> dict:
     """Compute composite score for each stage per the framework formula."""
 
@@ -389,7 +418,7 @@ def composite_score(s1: dict, s2: dict, s3: dict, s4: dict, s5: dict, s6: dict) 
             4,
         )
 
-    n_files = s1.get("nodes", 1)
+    s1.get("nodes", 1)
 
     # Helpers
     def _graph(d):
@@ -459,37 +488,40 @@ def composite_score(s1: dict, s2: dict, s3: dict, s4: dict, s5: dict, s6: dict) 
 
 # ── Formatter ────────────────────────────────────────────────────────────────
 
-def format_v01_entry(
-    py_files, s1, s2, s3, s4, s5, s6, stage_scores
-) -> str:
+
+def format_v01_entry(py_files, s1, s2, s3, s4, s5, s6, stage_scores) -> str:
     ts = _ts()
     rss = round(_rss_mb(), 1)
 
     def _bd_lines(bd):
-        return "\n".join(
-            f"    - `{k}`: {v}" for k, v in sorted(bd.items(), key=lambda x: -x[1])
-        ) or "    - (none)"
+        return (
+            "\n".join(f"    - `{k}`: {v}" for k, v in sorted(bd.items(), key=lambda x: -x[1]))
+            or "    - (none)"
+        )
 
     s2_bd = _bd_lines(s2.get("edge_breakdown", {}))
     s1_bd = _bd_lines(s1.get("edge_breakdown", {}))
 
-    top_lines = "\n".join(
-        f"    {i+1}. `{r['name']}` — composite={r['score']}  fan_in={r['fan_in']}  stability={r['stability']}"
-        for i, r in enumerate(s6.get("top_nodes", []))
-    ) or "    (none)"
+    top_lines = (
+        "\n".join(
+            f"    {i + 1}. `{r['name']}` — composite={r['score']}  fan_in={r['fan_in']}  stability={r['stability']}"
+            for i, r in enumerate(s6.get("top_nodes", []))
+        )
+        or "    (none)"
+    )
 
-    hotspot_lines = "\n".join(
-        f"    {i+1}. `{r['name']}` — fan_in={r['fan_in']}  bridge={r['bridge']}"
-        for i, r in enumerate(s6.get("hotspots", []))
-    ) or "    (none)"
+    hotspot_lines = (
+        "\n".join(
+            f"    {i + 1}. `{r['name']}` — fan_in={r['fan_in']}  bridge={r['bridge']}"
+            for i, r in enumerate(s6.get("hotspots", []))
+        )
+        or "    (none)"
+    )
 
     stable_str = ", ".join(f"`{n}`" for n in s6.get("stable_nodes", [])) or "(none)"
     volatile_str = ", ".join(f"`{n}`" for n in s6.get("volatile_nodes", [])) or "(none)"
 
-    score_table = "\n".join(
-        f"| {stage} | **{score}** |"
-        for stage, score in stage_scores.items()
-    )
+    score_table = "\n".join(f"| {stage} | **{score}** |" for stage, score in stage_scores.items())
 
     final_score = stage_scores.get("Stage 6 — + Centrality (V0.1 Full)", 0.0)
 
@@ -516,19 +548,19 @@ def format_v01_entry(
 
 | Metric | LSP (Stage 1) | CPG (Stage 2) | +Embeddings (Stage 3) | +Clustering (Stage 4) |
 |--------|--------------|--------------|----------------------|----------------------|
-| Build Time | {s1['build_time_s']} s | {s2['build_time_s']} s | +{s3['embed_time_s']} s | +{s4.get('cluster_time_s', 0)} s |
-| Peak Memory | {s1['peak_mem_mb']} MB | {s2['peak_mem_mb']} MB | — | — |
-| Parse Errors | {s1['parse_errors']} | {s2['parse_errors']} | — | — |
+| Build Time | {s1["build_time_s"]} s | {s2["build_time_s"]} s | +{s3["embed_time_s"]} s | +{s4.get("cluster_time_s", 0)} s |
+| Peak Memory | {s1["peak_mem_mb"]} MB | {s2["peak_mem_mb"]} MB | — | — |
+| Parse Errors | {s1["parse_errors"]} | {s2["parse_errors"]} | — | — |
 | Ranking Time | — | — | — | — |
 
 | Metric | Value |
 |--------|-------|
-| Ranking Computation (Stage 6) | {s6['rank_time_s']} s ({s6['nodes_scored']} semantic nodes) |
-| Avg BFS Latency (Stage 5) | {s5['avg_bfs_ms']} ms/query |
-| Avg Impact-Radius Latency | {s5['avg_impact_ms']} ms/query |
-| Avg Taint Traversal Latency | {s5['avg_taint_ms']} ms/source |
-| Avg Retrieval Latency | {s3['avg_retrieval_ms']} ms/query |
-| Symbol Lookup Latency | {s1['symbol_lookup_ms']} ms |
+| Ranking Computation (Stage 6) | {s6["rank_time_s"]} s ({s6["nodes_scored"]} semantic nodes) |
+| Avg BFS Latency (Stage 5) | {s5["avg_bfs_ms"]} ms/query |
+| Avg Impact-Radius Latency | {s5["avg_impact_ms"]} ms/query |
+| Avg Taint Traversal Latency | {s5["avg_taint_ms"]} ms/source |
+| Avg Retrieval Latency | {s3["avg_retrieval_ms"]} ms/query |
+| Symbol Lookup Latency | {s1["symbol_lookup_ms"]} ms |
 
 ---
 
@@ -536,13 +568,13 @@ def format_v01_entry(
 
 | Metric | LSP (Stage 1) | CPG (Stage 2) | Delta |
 |--------|--------------|--------------|-------|
-| Nodes | {s1['nodes']} | {s2['nodes']} | +{s2['nodes'] - s1['nodes']} |
-| Edges | {s1['edges']} | {s2['edges']} | +{s2['edges'] - s1['edges']} |
-| Graph Density | {s1['density']} | {s2['density']} | — |
-| Avg Degree | {s1['avg_degree']} | {s2['avg_degree']} | — |
-| Nodes Scored (Centrality) | — | {s6['nodes_scored']} | — |
-| PageRank Std Dev | — | {s6['pagerank_std']} | — |
-| Composite Score Std Dev | — | {s6.get('composite_std', 'n/a')} | — |
+| Nodes | {s1["nodes"]} | {s2["nodes"]} | +{s2["nodes"] - s1["nodes"]} |
+| Edges | {s1["edges"]} | {s2["edges"]} | +{s2["edges"] - s1["edges"]} |
+| Graph Density | {s1["density"]} | {s2["density"]} | — |
+| Avg Degree | {s1["avg_degree"]} | {s2["avg_degree"]} | — |
+| Nodes Scored (Centrality) | — | {s6["nodes_scored"]} | — |
+| PageRank Std Dev | — | {s6["pagerank_std"]} | — |
+| Composite Score Std Dev | — | {s6.get("composite_std", "n/a")} | — |
 
 **Stage 1 — LSP edge types:**
 {s1_bd}
@@ -556,9 +588,9 @@ def format_v01_entry(
 
 | Metric | Value |
 |--------|-------|
-| Avg BFS nodes reached (depth=3) | {s5['avg_bfs_nodes']} |
-| Avg impact radius (depth=3) | {s5['avg_impact_nodes']} |
-| Total taint paths detected | {s5['total_taint_paths']} |
+| Avg BFS nodes reached (depth=3) | {s5["avg_bfs_nodes"]} |
+| Avg impact radius (depth=3) | {s5["avg_impact_nodes"]} |
+| Total taint paths detected | {s5["total_taint_paths"]} |
 
 ---
 
@@ -566,10 +598,10 @@ def format_v01_entry(
 
 | Metric | Value |
 |--------|-------|
-| Embedded Nodes | {s3['nodes_embedded']} / {s2['nodes']} ({round(s3['nodes_embedded']/max(s2['nodes'],1)*100,1)}%) |
-| Skipped (non-semantic) | {s3['nodes_skipped']} |
-| Avg Results / Query | {s3['avg_results']} / 10 |
-| Avg Retrieval Latency | {s3['avg_retrieval_ms']} ms |
+| Embedded Nodes | {s3["nodes_embedded"]} / {s2["nodes"]} ({round(s3["nodes_embedded"] / max(s2["nodes"], 1) * 100, 1)}%) |
+| Skipped (non-semantic) | {s3["nodes_skipped"]} |
+| Avg Results / Query | {s3["avg_results"]} / 10 |
+| Avg Retrieval Latency | {s3["avg_retrieval_ms"]} ms |
 
 *Note: Precision@K / Recall@K / nDCG@K require annotated gold dataset (not yet available).
 Stub embeddings used — semantic scores are structural proxies only.*
@@ -580,12 +612,12 @@ Stub embeddings used — semantic scores are structural proxies only.*
 
 | Metric | Value |
 |--------|-------|
-| Clusters Found | {s4['n_clusters']} |
-| Noise Nodes | {s4['n_noise']} |
-| Noise Ratio | {s4['noise_ratio']} |
-| Silhouette Score | {s4['silhouette']} |
-| Mean Cohesion | {s4['mean_cohesion']} |
-| Mean Separation | {s4.get('mean_separation', 'n/a')} |
+| Clusters Found | {s4["n_clusters"]} |
+| Noise Nodes | {s4["n_noise"]} |
+| Noise Ratio | {s4["noise_ratio"]} |
+| Silhouette Score | {s4["silhouette"]} |
+| Mean Cohesion | {s4["mean_cohesion"]} |
+| Mean Separation | {s4.get("mean_separation", "n/a")} |
 
 *Silhouette ∈ [-1, 1]. Stub embeddings produce near-zero vectors; real provider needed for meaningful score.*
 
@@ -614,17 +646,18 @@ score = 0.25×retrieval + 0.25×graph + 0.20×semantic + 0.15×efficiency + 0.15
 
 | Dimension | Sub-score |
 |-----------|-----------|
-| Retrieval Quality | {round(s3.get('avg_results', 0) / 10.0, 4)} |
-| Graph Fidelity (edge/node ratio) | {round(min(s2['edges'] / max(s2['nodes'], 1) / 2.0, 1.0), 4)} |
-| Semantic Cohesion (embedded% + silhouette) | {round(min((s3['nodes_embedded'] / max(s2['nodes'], 1) + max(0.0, s4.get('silhouette', 0.0))) / 2, 1.0), 4)} |
-| Efficiency (build speed) | {round(max(0.0, 1.0 - (s2['build_time_s'] + s3['embed_time_s']) / 10.0), 4)} |
-| Ranking Discrimination | {round(min(s6.get('pagerank_std', 0) * 100, 1.0), 4)} |
+| Retrieval Quality | {round(s3.get("avg_results", 0) / 10.0, 4)} |
+| Graph Fidelity (edge/node ratio) | {round(min(s2["edges"] / max(s2["nodes"], 1) / 2.0, 1.0), 4)} |
+| Semantic Cohesion (embedded% + silhouette) | {round(min((s3["nodes_embedded"] / max(s2["nodes"], 1) + max(0.0, s4.get("silhouette", 0.0))) / 2, 1.0), 4)} |
+| Efficiency (build speed) | {round(max(0.0, 1.0 - (s2["build_time_s"] + s3["embed_time_s"]) / 10.0), 4)} |
+| Ranking Discrimination | {round(min(s6.get("pagerank_std", 0) * 100, 1.0), 4)} |
 | **V0.1 COMPOSITE** | **{final_score}** |
 
 """
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
+
 
 def main():
     parser = argparse.ArgumentParser(description="CodeCortex V0.1 benchmark")
@@ -644,45 +677,51 @@ def main():
         sys.exit(1)
 
     if not args.quiet:
-        print(f"\n{'='*65}")
-        print(f"  CodeCortex V0.1 — Stage-wise Performance Evaluation")
+        print(f"\n{'=' * 65}")
+        print("  CodeCortex V0.1 — Stage-wise Performance Evaluation")
         print(f"  {_ts()}")
         print(f"  Target: {target_dir}")
         print(f"  Files : {len(py_files)} Python files")
-        print(f"{'='*65}\n")
+        print(f"{'=' * 65}\n")
 
-    if not args.quiet: print("[Stage 1] LSP Semantic Index")
+    if not args.quiet:
+        print("[Stage 1] LSP Semantic Index")
     s1 = stage1_lsp(py_files, args.quiet)
 
-    if not args.quiet: print("\n[Stage 2] Code Property Graph (CFG + DFG + Endpoints)")
+    if not args.quiet:
+        print("\n[Stage 2] Code Property Graph (CFG + DFG + Endpoints)")
     s2 = stage2_cpg(py_files, args.quiet)
     store = s2.pop("store")
     s1.pop("store", None)
 
-    if not args.quiet: print("\n[Stage 3] Vector Embeddings (FAISS)")
+    if not args.quiet:
+        print("\n[Stage 3] Vector Embeddings (FAISS)")
     s3 = stage3_embeddings(store, args.quiet)
     emb_pipeline = s3.pop("pipeline")
     adj = s3.pop("adj")
     s3.pop("layer", None)
 
-    if not args.quiet: print("\n[Stage 4] HDBSCAN Clustering")
+    if not args.quiet:
+        print("\n[Stage 4] HDBSCAN Clustering")
     s4 = stage4_clustering(emb_pipeline, args.quiet)
 
-    if not args.quiet: print("\n[Stage 5] Bounded Traversal (BFS + Taint)")
+    if not args.quiet:
+        print("\n[Stage 5] Bounded Traversal (BFS + Taint)")
     s5 = stage5_traversal(store, adj, args.quiet)
 
-    if not args.quiet: print("\n[Stage 6] Centrality Ranking")
+    if not args.quiet:
+        print("\n[Stage 6] Centrality Ranking")
     s6 = stage6_centrality(store, args.quiet)
     s6.pop("scores", None)
 
     scores = composite_score(s1, s2, s3, s4, s5, s6)
 
     if not args.quiet:
-        print(f"\n{'='*65}")
+        print(f"\n{'=' * 65}")
         print("  Stage Composite Scores")
         for stage, sc in scores.items():
             print(f"    {stage:<40} {sc}")
-        print(f"{'='*65}\n")
+        print(f"{'=' * 65}\n")
 
     entry = format_v01_entry(py_files, s1, s2, s3, s4, s5, s6, scores)
 

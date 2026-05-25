@@ -21,33 +21,35 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Optional
 
 from core.types import NodeKind
 from graph.schema import CPGNode
 
-
 # Kinds we always want to embed (structural landmarks)
-_EMBED_KINDS = frozenset({
-    NodeKind.FUNCTION,
-    NodeKind.METHOD,
-    NodeKind.CLASS,
-    NodeKind.INTERFACE,
-    NodeKind.ENDPOINT,
-    NodeKind.TEST,
-    NodeKind.MODULE,
-    NodeKind.FILE,
-    NodeKind.ENUM,
-    NodeKind.STRUCT,
-})
+_EMBED_KINDS = frozenset(
+    {
+        NodeKind.FUNCTION,
+        NodeKind.METHOD,
+        NodeKind.CLASS,
+        NodeKind.INTERFACE,
+        NodeKind.ENDPOINT,
+        NodeKind.TEST,
+        NodeKind.MODULE,
+        NodeKind.FILE,
+        NodeKind.ENUM,
+        NodeKind.STRUCT,
+    }
+)
 
 # Kinds we skip — too low-level for meaningful embeddings
-_SKIP_KINDS = frozenset({
-    NodeKind.VARIABLE,
-    NodeKind.PARAMETER,
-    NodeKind.CALLSITE,
-    NodeKind.CONSTANT,
-})
+_SKIP_KINDS = frozenset(
+    {
+        NodeKind.VARIABLE,
+        NodeKind.PARAMETER,
+        NodeKind.CALLSITE,
+        NodeKind.CONSTANT,
+    }
+)
 
 
 class CodeEmbedder:
@@ -111,9 +113,7 @@ class CodeEmbedder:
 
         return " ".join(parts)
 
-    def embed_texts(
-        self, nodes: list[CPGNode]
-    ) -> list[tuple[str, str]]:
+    def embed_texts(self, nodes: list[CPGNode]) -> list[tuple[str, str]]:
         """Return [(qualified_name, text), ...] for all embeddable nodes."""
         return [
             (node.qualified_name, self.embed_text(node))
@@ -121,9 +121,7 @@ class CodeEmbedder:
             if self.should_embed(node)
         ]
 
-    def embed_texts_for_store(
-        self, nodes: list[CPGNode]
-    ) -> tuple[list[str], list[str]]:
+    def embed_texts_for_store(self, nodes: list[CPGNode]) -> tuple[list[str], list[str]]:
         """Return (qualified_names, texts) lists for batch embedding."""
         names, texts = [], []
         for node in nodes:
@@ -136,6 +134,7 @@ class CodeEmbedder:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _kind_label(kind: NodeKind) -> str:
     labels = {

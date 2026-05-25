@@ -62,17 +62,20 @@ class LSPClient:
         self._reader_thread = threading.Thread(target=self._reader_loop, daemon=True)
         self._reader_thread.start()
 
-        result = self._request("initialize", {
-            "processId": None,
-            "rootUri": self.root_uri,
-            "capabilities": {
-                "textDocument": {
-                    "definition": {"dynamicRegistration": False},
-                    "references": {"dynamicRegistration": False},
-                }
+        result = self._request(
+            "initialize",
+            {
+                "processId": None,
+                "rootUri": self.root_uri,
+                "capabilities": {
+                    "textDocument": {
+                        "definition": {"dynamicRegistration": False},
+                        "references": {"dynamicRegistration": False},
+                    }
+                },
+                "initializationOptions": {},
             },
-            "initializationOptions": {},
-        })
+        )
         if result is None:
             raise LSPError("initialize returned no result")
 
@@ -100,19 +103,20 @@ class LSPClient:
     # ------------------------------------------------------------------
 
     def open_file(self, uri: str, text: str, language_id: str = "python") -> None:
-        self._notify("textDocument/didOpen", {
-            "textDocument": {
-                "uri": uri,
-                "languageId": language_id,
-                "version": 1,
-                "text": text,
-            }
-        })
+        self._notify(
+            "textDocument/didOpen",
+            {
+                "textDocument": {
+                    "uri": uri,
+                    "languageId": language_id,
+                    "version": 1,
+                    "text": text,
+                }
+            },
+        )
 
     def close_file(self, uri: str) -> None:
-        self._notify("textDocument/didClose", {
-            "textDocument": {"uri": uri}
-        })
+        self._notify("textDocument/didClose", {"textDocument": {"uri": uri}})
 
     # ------------------------------------------------------------------
     # Queries
@@ -120,36 +124,42 @@ class LSPClient:
 
     def definition(self, uri: str, line: int, character: int) -> list[dict]:
         """Return definition locations for the symbol at (line, character)."""
-        result = self._request("textDocument/definition", {
-            "textDocument": {"uri": uri},
-            "position": {"line": line, "character": character},
-        })
+        result = self._request(
+            "textDocument/definition",
+            {
+                "textDocument": {"uri": uri},
+                "position": {"line": line, "character": character},
+            },
+        )
         return _normalise_locations(result)
 
     def references(self, uri: str, line: int, character: int) -> list[dict]:
         """Return all reference locations for the symbol at (line, character)."""
-        result = self._request("textDocument/references", {
-            "textDocument": {"uri": uri},
-            "position": {"line": line, "character": character},
-            "context": {"includeDeclaration": False},
-        })
+        result = self._request(
+            "textDocument/references",
+            {
+                "textDocument": {"uri": uri},
+                "position": {"line": line, "character": character},
+                "context": {"includeDeclaration": False},
+            },
+        )
         return _normalise_locations(result)
 
     def hover(self, uri: str, line: int, character: int) -> str:
-        result = self._request("textDocument/hover", {
-            "textDocument": {"uri": uri},
-            "position": {"line": line, "character": character},
-        })
+        result = self._request(
+            "textDocument/hover",
+            {
+                "textDocument": {"uri": uri},
+                "position": {"line": line, "character": character},
+            },
+        )
         if not result:
             return ""
         contents = result.get("contents", "")
         if isinstance(contents, dict):
             return contents.get("value", "")
         if isinstance(contents, list):
-            return " ".join(
-                c.get("value", c) if isinstance(c, dict) else c
-                for c in contents
-            )
+            return " ".join(c.get("value", c) if isinstance(c, dict) else c for c in contents)
         return str(contents)
 
     # ------------------------------------------------------------------
@@ -211,6 +221,7 @@ class LSPClient:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _normalise_locations(result: Any) -> list[dict]:
     """Normalise LSP Location | Location[] | LocationLink[] to a flat list."""

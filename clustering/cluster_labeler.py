@@ -12,13 +12,38 @@ from typing import Optional
 
 from clustering.semantic_clusters import Cluster
 
-
-_STOP_WORDS = frozenset({
-    "self", "cls", "args", "kwargs", "result", "data", "value",
-    "item", "items", "obj", "obj", "get", "set", "add", "the",
-    "for", "with", "and", "not", "is", "in", "of", "to", "a",
-    "node", "nodes", "edge", "edges",
-})
+_STOP_WORDS = frozenset(
+    {
+        "self",
+        "cls",
+        "args",
+        "kwargs",
+        "result",
+        "data",
+        "value",
+        "item",
+        "items",
+        "obj",
+        "obj",
+        "get",
+        "set",
+        "add",
+        "the",
+        "for",
+        "with",
+        "and",
+        "not",
+        "is",
+        "in",
+        "of",
+        "to",
+        "a",
+        "node",
+        "nodes",
+        "edge",
+        "edges",
+    }
+)
 
 
 def _tokenize(name: str) -> list[str]:
@@ -72,8 +97,9 @@ class ClusterLabeler:
             if mod:
                 module_counter[mod] += 1
 
-        top_tokens = [t for t, _ in token_counter.most_common(self.max_tokens + 4)
-                      if t not in _STOP_WORDS][:self.max_tokens]
+        top_tokens = [
+            t for t, _ in token_counter.most_common(self.max_tokens + 4) if t not in _STOP_WORDS
+        ][: self.max_tokens]
 
         # Find dominant module (>= 50% of members)
         dominant_mod = None

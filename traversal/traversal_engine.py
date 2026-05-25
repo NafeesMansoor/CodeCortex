@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import logging
 from collections import deque
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from dataclasses import dataclass
+from typing import Optional
 
 from core.types import EdgeKind, NodeKind, TraversalConfig
 
@@ -146,23 +146,29 @@ class TraversalEngine:
                         neighbor = self.graph_store.get_node(neighbor_name)
                         if neighbor:
                             visited.add(neighbor_name)
-                            queue.append((neighbor, depth + 1, path + [neighbor_name], edges + [edge_kind]))
+                            queue.append(
+                                (neighbor, depth + 1, path + [neighbor_name], edges + [edge_kind])
+                            )
                 continue
 
-            results.append(TraversalNode(
-                qualified_name=node.qualified_name,
-                node_kind=node.kind,
-                depth=depth,
-                path=path,
-                edges_traversed=edges,
-            ))
+            results.append(
+                TraversalNode(
+                    qualified_name=node.qualified_name,
+                    node_kind=node.kind,
+                    depth=depth,
+                    path=path,
+                    edges_traversed=edges,
+                )
+            )
 
             for neighbor_name, edge_kind in self._neighbors_out(node.qualified_name, config):
                 if neighbor_name not in visited and len(results) < config.max_nodes:
                     neighbor = self.graph_store.get_node(neighbor_name)
                     if neighbor:
                         visited.add(neighbor_name)
-                        queue.append((neighbor, depth + 1, path + [neighbor_name], edges + [edge_kind]))
+                        queue.append(
+                            (neighbor, depth + 1, path + [neighbor_name], edges + [edge_kind])
+                        )
 
         if self.enable_memoization:
             self._memo_cache[self._memo_key(start_nodes, config)] = results
@@ -185,13 +191,15 @@ class TraversalEngine:
             visited.add(node.qualified_name)
 
             if not config.node_filter or node.kind in config.node_filter:
-                results.append(TraversalNode(
-                    qualified_name=node.qualified_name,
-                    node_kind=node.kind,
-                    depth=depth,
-                    path=path,
-                    edges_traversed=edges,
-                ))
+                results.append(
+                    TraversalNode(
+                        qualified_name=node.qualified_name,
+                        node_kind=node.kind,
+                        depth=depth,
+                        path=path,
+                        edges_traversed=edges,
+                    )
+                )
 
             for neighbor_name, edge_kind in self._neighbors_out(node.qualified_name, config):
                 if neighbor_name not in visited:
@@ -299,20 +307,24 @@ class TraversalEngine:
                 if depth >= max_depth:
                     continue
 
-                for neighbor_name, edge_kind in self._neighbors_out_raw_filtered(current, taint_edges):
+                for neighbor_name, edge_kind in self._neighbors_out_raw_filtered(
+                    current, taint_edges
+                ):
                     if neighbor_name in visited:
                         continue
                     visited.add(neighbor_name)
                     new_path = path + [neighbor_name]
                     new_edges = edge_path + [edge_kind]
 
-                    flows.append(TaintFlow(
-                        source=source,
-                        sink=neighbor_name,
-                        path=new_path,
-                        edge_kinds=new_edges,
-                        depth=depth + 1,
-                    ))
+                    flows.append(
+                        TaintFlow(
+                            source=source,
+                            sink=neighbor_name,
+                            path=new_path,
+                            edge_kinds=new_edges,
+                            depth=depth + 1,
+                        )
+                    )
                     queue.append((neighbor_name, new_path, new_edges, depth + 1))
 
         return flows
@@ -365,25 +377,30 @@ class TraversalEngine:
             if config.node_filter and node.kind not in config.node_filter:
                 continue
 
-            results.append(TraversalNode(
-                qualified_name=name,
-                node_kind=node.kind,
-                depth=depth,
-                path=path,
-                edges_traversed=edge_path,
-            ))
+            results.append(
+                TraversalNode(
+                    qualified_name=name,
+                    node_kind=node.kind,
+                    depth=depth,
+                    path=path,
+                    edges_traversed=edge_path,
+                )
+            )
 
             for neighbor_name, edge_kind in self._neighbors_out(name, config):
                 if neighbor_name not in visited:
                     visited.add(neighbor_name)
                     w = weights.get(edge_kind, default_w)
-                    heapq.heappush(heap, (
-                        cost + w,
-                        depth + 1,
-                        neighbor_name,
-                        path + [neighbor_name],
-                        edge_path + [edge_kind],
-                    ))
+                    heapq.heappush(
+                        heap,
+                        (
+                            cost + w,
+                            depth + 1,
+                            neighbor_name,
+                            path + [neighbor_name],
+                            edge_path + [edge_kind],
+                        ),
+                    )
 
         return results
 
@@ -409,7 +426,9 @@ class TraversalEngine:
 
         return raw
 
-    def _neighbors_out_raw(self, node_name: str, config: TraversalConfig) -> list[tuple[str, EdgeKind]]:
+    def _neighbors_out_raw(
+        self, node_name: str, config: TraversalConfig
+    ) -> list[tuple[str, EdgeKind]]:
         if self._adj is not None:
             pairs = self._adj.outgoing(node_name)
         else:
@@ -420,7 +439,9 @@ class TraversalEngine:
             pairs = [(t, k) for t, k in pairs if k in config.edge_filter]
         return pairs
 
-    def _neighbors_in_raw(self, node_name: str, config: TraversalConfig) -> list[tuple[str, EdgeKind]]:
+    def _neighbors_in_raw(
+        self, node_name: str, config: TraversalConfig
+    ) -> list[tuple[str, EdgeKind]]:
         if self._adj is not None:
             pairs = self._adj.incoming(node_name)
         else:

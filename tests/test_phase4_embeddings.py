@@ -3,28 +3,33 @@
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.types import NodeKind
 from core.parsers import PythonParser
-from graph.graph_store import GraphStore
-from graph.cpg_builder import CPGBuilder
-from graph.schema import CPGNode, SourceRange
+from core.types import NodeKind
 from embeddings.code_embedder import CodeEmbedder, _camel_to_words, _kind_label
 from embeddings.embedding_pipeline import EmbeddingPipeline, PipelineStats
 from embeddings.embedding_store import EmbeddingStore
 from embeddings.provider_factory import EmbeddingConfig, StubEmbeddingProvider
-
+from graph.cpg_builder import CPGBuilder
+from graph.graph_store import GraphStore
+from graph.schema import CPGNode
 
 # ---------------------------------------------------------------------------
 # CodeEmbedder
 # ---------------------------------------------------------------------------
 
+
 class TestCodeEmbedder:
-    def _node(self, kind=NodeKind.FUNCTION, name="my_func", parent=None,
-               params=None, file_path="src/utils.py", **kwargs) -> CPGNode:
+    def _node(
+        self,
+        kind=NodeKind.FUNCTION,
+        name="my_func",
+        parent=None,
+        params=None,
+        file_path="src/utils.py",
+        **kwargs,
+    ) -> CPGNode:
         return CPGNode(
             qualified_name=f"{parent}.{name}" if parent else name,
             kind=kind,
@@ -103,6 +108,7 @@ class TestCodeEmbedder:
 # EmbeddingStore (updated add_batch signature)
 # ---------------------------------------------------------------------------
 
+
 class TestEmbeddingStoreUpdated:
     def test_add_batch_new_signature(self):
         provider = StubEmbeddingProvider(dimensions=16)
@@ -121,13 +127,6 @@ class TestEmbeddingStoreUpdated:
         assert len(results) >= 1
 
     def test_faiss_search_used_when_available(self):
-        try:
-            import faiss
-            import numpy as np
-            has_faiss = True
-        except ImportError:
-            has_faiss = False
-
         provider = StubEmbeddingProvider(dimensions=16)
         store = EmbeddingStore(provider, use_faiss=True)
         store.add_batch(
@@ -144,6 +143,7 @@ class TestEmbeddingStoreUpdated:
 # ---------------------------------------------------------------------------
 # EmbeddingPipeline
 # ---------------------------------------------------------------------------
+
 
 class TestEmbeddingPipeline:
     def _build_store(self, source: str = None) -> GraphStore:
@@ -204,10 +204,12 @@ class TestEmbeddingPipeline:
         config = EmbeddingConfig(provider="stub", dimensions=16)
         pipeline = EmbeddingPipeline.from_config(store, config)
         pipeline.index_all()
-        before_size = pipeline.embedding_store.size()
+        pipeline.embedding_store.size()
 
         # Add a new function and re-index that file
-        src_file.write_text("def alpha():\n    pass\ndef beta():\n    pass\ndef gamma():\n    pass\n")
+        src_file.write_text(
+            "def alpha():\n    pass\ndef beta():\n    pass\ndef gamma():\n    pass\n"
+        )
         builder.ingest(parser.parse(src_file.read_text(), str(src_file)))
         stats = pipeline.index_file(str(src_file))
         assert stats.nodes_embedded >= 1

@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from indexing.semantic_index import SemanticIndex, SymbolInfo
+from indexing.semantic_index import SemanticIndex
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +123,7 @@ class SymbolResolver:
         Useful for post-processing the graph after initial ingestion.
         """
         from core.types import EdgeKind
+
         unresolved: dict[str, Optional[str]] = {}
 
         for edge in self.index.store.all_edges():
@@ -146,6 +147,7 @@ def _module_of(file_path: str) -> str:
         "app/Http/Controllers/UserController.php" → "app.Http.Controllers.UserController"
     """
     import re
+
     path = file_path.replace("\\", "/")
     path = re.sub(r"\.(py|php|js|ts|tsx|jsx)$", "", path)
     return path.replace("/", ".")

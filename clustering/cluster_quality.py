@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Optional
 
 from clustering.semantic_clusters import Cluster, ClusteringResult
 
@@ -17,10 +16,10 @@ from clustering.semantic_clusters import Cluster, ClusteringResult
 class ClusterQualityReport:
     """Per-run quality summary."""
 
-    silhouette_score: float = 0.0       # Global mean silhouette [-1, 1]; higher=better
-    mean_cohesion: float = 0.0          # Avg intra-cluster cosine similarity [0, 1]
-    mean_separation: float = 0.0       # Avg inter-cluster centroid distance [0, ∞)
-    noise_ratio: float = 0.0            # Fraction of nodes labeled as noise
+    silhouette_score: float = 0.0  # Global mean silhouette [-1, 1]; higher=better
+    mean_cohesion: float = 0.0  # Avg intra-cluster cosine similarity [0, 1]
+    mean_separation: float = 0.0  # Avg inter-cluster centroid distance [0, ∞)
+    noise_ratio: float = 0.0  # Fraction of nodes labeled as noise
     n_clusters: int = 0
     n_noise: int = 0
     per_cluster: list[dict] = field(default_factory=list)  # per-cluster stats
@@ -104,9 +103,7 @@ class ClusterQualityEvaluator:
             return report
 
         # Build vector lookup
-        vec_map: dict[str, list[float]] = {
-            name: item.vector for name, item in items.items()
-        }
+        vec_map: dict[str, list[float]] = {name: item.vector for name, item in items.items()}
 
         # Per-cluster cohesion and centroids
         centroids: dict[int, list[float]] = {}
@@ -116,11 +113,13 @@ class ClusterQualityEvaluator:
         for cluster in clusters:
             vecs = [vec_map[m] for m in cluster.members if m in vec_map]
             if not vecs:
-                per_cluster_stats.append({
-                    "cluster_id": cluster.cluster_id,
-                    "size": 0,
-                    "cohesion": 0.0,
-                })
+                per_cluster_stats.append(
+                    {
+                        "cluster_id": cluster.cluster_id,
+                        "size": 0,
+                        "cohesion": 0.0,
+                    }
+                )
                 continue
 
             centroid = _mean_vec(vecs)
@@ -129,14 +128,18 @@ class ClusterQualityEvaluator:
             # Cohesion = mean pairwise cosine similarity (sampled if large)
             cohesion = self._mean_cohesion(vecs)
             cohesion_scores.append(cohesion)
-            per_cluster_stats.append({
-                "cluster_id": cluster.cluster_id,
-                "label": cluster.label,
-                "size": len(vecs),
-                "cohesion": round(cohesion, 4),
-            })
+            per_cluster_stats.append(
+                {
+                    "cluster_id": cluster.cluster_id,
+                    "label": cluster.label,
+                    "size": len(vecs),
+                    "cohesion": round(cohesion, 4),
+                }
+            )
 
-        report.mean_cohesion = sum(cohesion_scores) / len(cohesion_scores) if cohesion_scores else 0.0
+        report.mean_cohesion = (
+            sum(cohesion_scores) / len(cohesion_scores) if cohesion_scores else 0.0
+        )
         report.per_cluster = per_cluster_stats
 
         # Separation = mean pairwise distance between cluster centroids
@@ -159,6 +162,7 @@ class ClusterQualityEvaluator:
             return 1.0
 
         import random
+
         sample = vecs if len(vecs) <= 30 else random.sample(vecs, 30)
         scores = []
         for i in range(len(sample)):

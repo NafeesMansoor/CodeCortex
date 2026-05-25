@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Optional
 
 from core.types import ParseResult
 
@@ -59,10 +59,7 @@ class ParallelIndexer:
 
         results = []
         with ThreadPoolExecutor(max_workers=self.max_workers) as pool:
-            futures = {
-                pool.submit(self._parse_one, parser, f): f
-                for f in files
-            }
+            futures = {pool.submit(self._parse_one, parser, f): f for f in files}
             for future in as_completed(futures):
                 file_path = futures[future]
                 try:
@@ -111,15 +108,19 @@ class ParallelIndexer:
         try:
             if language == "python":
                 from core.parsers.python_parser import PythonParser
+
                 return PythonParser()
             if language in ("javascript", "js"):
                 from core.parsers.javascript_parser import JavaScriptParser
+
                 return JavaScriptParser()
             if language in ("typescript", "ts"):
                 from core.parsers.typescript_parser import TypeScriptParser
+
                 return TypeScriptParser()
             if language == "php":
                 from core.parsers.php_parser import PHPParser
+
                 return PHPParser()
         except Exception as e:
             logger.debug("Parser init failed for %r: %s", language, e)

@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import sys
 
-
 _USAGE = """\
 CodeCortex v1.0.1 — Adaptive Semantic Intelligence Engine
 
@@ -52,14 +51,17 @@ def main(argv=None) -> int:
 
     if subcommand == "index":
         from codecortex.index import main as _main
+
         return _main(rest)
 
     if subcommand == "query":
         from codecortex.query import main as _main
+
         return _main(rest)
 
     if subcommand in ("visualize", "viz"):
         from visualization.server import main as _main
+
         return _main(rest)
 
     print(f"Unknown subcommand: {subcommand!r}", file=sys.stderr)

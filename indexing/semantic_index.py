@@ -27,9 +27,9 @@ class SymbolInfo:
     kind: NodeKind
     file_path: str
     language: str = ""
-    callers: list[str] = field(default_factory=list)    # Who calls this
-    callees: list[str] = field(default_factory=list)    # What this calls
-    references: list[str] = field(default_factory=list) # Other uses
+    callers: list[str] = field(default_factory=list)  # Who calls this
+    callees: list[str] = field(default_factory=list)  # What this calls
+    references: list[str] = field(default_factory=list)  # Other uses
     parent: Optional[str] = None
 
 
@@ -115,10 +115,7 @@ class SemanticIndex:
 
     def all_files(self) -> list[str]:
         """Return all indexed file paths."""
-        return [
-            n.qualified_name
-            for n in self.store.get_nodes_by_kind(NodeKind.FILE)
-        ]
+        return [n.qualified_name for n in self.store.get_nodes_by_kind(NodeKind.FILE)]
 
     def stats(self) -> dict:
         """Return index statistics."""
@@ -134,9 +131,7 @@ class SemanticIndex:
         callees = self.callees_of(node.qualified_name)
 
         ref_edges = self.store.get_incoming_edges(node.qualified_name)
-        references = [
-            e.source for e in ref_edges if e.kind == EdgeKind.REFERENCES
-        ]
+        references = [e.source for e in ref_edges if e.kind == EdgeKind.REFERENCES]
 
         return SymbolInfo(
             qualified_name=node.qualified_name,

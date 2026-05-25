@@ -3,26 +3,29 @@
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.types import EdgeKind, NodeKind
 from graph.graph_store import GraphStore
 from graph.schema import CPGEdge, CPGNode
-from ranking.centrality_engine import CentralityEngine, NodeScore, _SEMANTIC_KINDS
-
+from ranking.centrality_engine import _SEMANTIC_KINDS, CentralityEngine, NodeScore
 
 # ---------------------------------------------------------------------------
 # Graph fixtures
 # ---------------------------------------------------------------------------
 
+
 def _hub_graph() -> GraphStore:
     """Hub graph: A is called by B, C, D, E. A calls F."""
     store = GraphStore(":memory:")
-    for name, kind in [("A", NodeKind.FUNCTION), ("B", NodeKind.FUNCTION),
-                       ("C", NodeKind.FUNCTION), ("D", NodeKind.FUNCTION),
-                       ("E", NodeKind.FUNCTION), ("F", NodeKind.FUNCTION)]:
+    for name, kind in [
+        ("A", NodeKind.FUNCTION),
+        ("B", NodeKind.FUNCTION),
+        ("C", NodeKind.FUNCTION),
+        ("D", NodeKind.FUNCTION),
+        ("E", NodeKind.FUNCTION),
+        ("F", NodeKind.FUNCTION),
+    ]:
         store.add_node(CPGNode(name, kind, name, "f.py"))
     for caller in ["B", "C", "D", "E"]:
         store.add_edge(CPGEdge(EdgeKind.CALLS, caller, "A"))
@@ -53,6 +56,7 @@ def _mixed_graph() -> GraphStore:
 # NodeScore dataclass
 # ---------------------------------------------------------------------------
 
+
 class TestNodeScore:
     def test_to_dict_has_all_fields(self):
         score = NodeScore(
@@ -76,13 +80,14 @@ class TestNodeScore:
 
     def test_stability_and_volatility_sum_less_than_one(self):
         # stability + volatility < 1 (denominator includes +1)
-        score = NodeScore("x", 0.1, 0.0, 0.0, 0.0, 3, 1, 3/5, 1/5, 0.1)
+        score = NodeScore("x", 0.1, 0.0, 0.0, 0.0, 3, 1, 3 / 5, 1 / 5, 0.1)
         assert score.stability_score + score.volatility_score < 1.0
 
 
 # ---------------------------------------------------------------------------
 # CentralityEngine — semantic_only filtering
 # ---------------------------------------------------------------------------
+
 
 class TestSemanticFiltering:
     def test_variable_nodes_excluded(self):
@@ -118,6 +123,7 @@ class TestSemanticFiltering:
 # ---------------------------------------------------------------------------
 # Centrality computation correctness
 # ---------------------------------------------------------------------------
+
 
 class TestCentralityComputation:
     def test_hub_has_highest_fan_in(self):
@@ -185,6 +191,7 @@ class TestCentralityComputation:
 # Stability and volatility
 # ---------------------------------------------------------------------------
 
+
 class TestStabilityVolatility:
     def test_hub_is_stable(self):
         store = _hub_graph()
@@ -219,6 +226,7 @@ class TestStabilityVolatility:
 # Top-nodes and hotspots
 # ---------------------------------------------------------------------------
 
+
 class TestTopNodes:
     def test_top_nodes_sorted_descending(self):
         store = _hub_graph()
@@ -247,6 +255,7 @@ class TestTopNodes:
 # ---------------------------------------------------------------------------
 # Integration: CPG graph with real parsers
 # ---------------------------------------------------------------------------
+
 
 class TestCentralityIntegration:
     def test_cpg_graph_scores(self):

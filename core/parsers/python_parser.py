@@ -28,7 +28,7 @@ def _end_line(node) -> int:
 
 
 def _node_text(node, source: str) -> str:
-    return source[node.start_byte():node.end_byte()]
+    return source[node.start_byte() : node.end_byte()]
 
 
 class PythonParser(LanguageParser):
@@ -84,9 +84,7 @@ class PythonParser(LanguageParser):
                 name = self._get_identifier(node, source)
                 if name:
                     params = self._extract_params(node, source)
-                    is_test = name.startswith("test_") or (
-                        parent_name and "Test" in parent_name
-                    )
+                    is_test = name.startswith("test_") or (parent_name and "Test" in parent_name)
 
                     if is_test:
                         kind = NodeKind.TEST
@@ -95,16 +93,18 @@ class PythonParser(LanguageParser):
                     else:
                         kind = NodeKind.FUNCTION
 
-                    nodes.append(NodeInfo(
-                        kind=kind,
-                        name=name,
-                        file_path=fp,
-                        range=SourceRange(_start_line(node), _end_line(node)),
-                        language=self.language,
-                        parent_name=parent_name,
-                        params=params,
-                        is_test=is_test,
-                    ))
+                    nodes.append(
+                        NodeInfo(
+                            kind=kind,
+                            name=name,
+                            file_path=fp,
+                            range=SourceRange(_start_line(node), _end_line(node)),
+                            language=self.language,
+                            parent_name=parent_name,
+                            params=params,
+                            is_test=is_test,
+                        )
+                    )
                     for child in _children(node):
                         visit(child, parent_name=name, inside_class=False)
                     return
@@ -130,13 +130,15 @@ class PythonParser(LanguageParser):
             if node.kind() == "call":
                 target = self._get_call_target(node, source)
                 if target and enclosing_func:
-                    edges.append(EdgeInfo(
-                        kind=EdgeKind.CALLS,
-                        source_qualified=enclosing_func,
-                        target_qualified=target,
-                        file_path=fp,
-                        position=None,
-                    ))
+                    edges.append(
+                        EdgeInfo(
+                            kind=EdgeKind.CALLS,
+                            source_qualified=enclosing_func,
+                            target_qualified=target,
+                            file_path=fp,
+                            position=None,
+                        )
+                    )
 
             new_func = enclosing_func
             if node.kind() == "function_definition":
@@ -157,21 +159,25 @@ class PythonParser(LanguageParser):
             if node.kind() == "import_statement":
                 module = self._extract_import_module(node, source)
                 if module:
-                    edges.append(EdgeInfo(
-                        kind=EdgeKind.IMPORTS_FROM,
-                        source_qualified="__main__",
-                        target_qualified=module,
-                        file_path=fp,
-                    ))
+                    edges.append(
+                        EdgeInfo(
+                            kind=EdgeKind.IMPORTS_FROM,
+                            source_qualified="__main__",
+                            target_qualified=module,
+                            file_path=fp,
+                        )
+                    )
             elif node.kind() == "import_from_statement":
                 module = self._extract_from_import(node, source)
                 if module:
-                    edges.append(EdgeInfo(
-                        kind=EdgeKind.IMPORTS_FROM,
-                        source_qualified="__main__",
-                        target_qualified=module,
-                        file_path=fp,
-                    ))
+                    edges.append(
+                        EdgeInfo(
+                            kind=EdgeKind.IMPORTS_FROM,
+                            source_qualified="__main__",
+                            target_qualified=module,
+                            file_path=fp,
+                        )
+                    )
 
             for child in _children(node):
                 visit(child)
@@ -192,12 +198,14 @@ class PythonParser(LanguageParser):
                     if child.kind() == "argument_list":
                         bases = self._extract_bases(child, source)
                         for base in bases:
-                            edges.append(EdgeInfo(
-                                kind=EdgeKind.INHERITS,
-                                source_qualified=class_name,
-                                target_qualified=base,
-                                file_path=fp,
-                            ))
+                            edges.append(
+                                EdgeInfo(
+                                    kind=EdgeKind.INHERITS,
+                                    source_qualified=class_name,
+                                    target_qualified=base,
+                                    file_path=fp,
+                                )
+                            )
 
             for child in _children(node):
                 visit(child, parent_class)
@@ -214,13 +222,15 @@ class PythonParser(LanguageParser):
             if node.kind() == "class_definition":
                 name = self._get_identifier(node, source)
                 if name:
-                    nodes.append(NodeInfo(
-                        kind=NodeKind.CLASS,
-                        name=name,
-                        file_path=fp,
-                        range=SourceRange(_start_line(node), _end_line(node)),
-                        language=self.language,
-                    ))
+                    nodes.append(
+                        NodeInfo(
+                            kind=NodeKind.CLASS,
+                            name=name,
+                            file_path=fp,
+                            range=SourceRange(_start_line(node), _end_line(node)),
+                            language=self.language,
+                        )
+                    )
 
             for child in _children(node):
                 visit(child)
@@ -237,14 +247,16 @@ class PythonParser(LanguageParser):
             if node.kind() == "function_definition":
                 name = self._get_identifier(node, source)
                 if name and (name.startswith("test_") or name == "setUp" or name == "tearDown"):
-                    nodes.append(NodeInfo(
-                        kind=NodeKind.TEST,
-                        name=name,
-                        file_path=fp,
-                        range=SourceRange(_start_line(node), _end_line(node)),
-                        language=self.language,
-                        is_test=True,
-                    ))
+                    nodes.append(
+                        NodeInfo(
+                            kind=NodeKind.TEST,
+                            name=name,
+                            file_path=fp,
+                            range=SourceRange(_start_line(node), _end_line(node)),
+                            language=self.language,
+                            is_test=True,
+                        )
+                    )
 
             for child in _children(node):
                 visit(child)

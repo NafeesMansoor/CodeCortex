@@ -3,23 +3,24 @@
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from clustering.semantic_clusters import (
-    Cluster, ClusterConfig, ClusteringResult, SemanticClusterer,
-)
-from clustering.cluster_labeler import ClusterLabeler, _tokenize, _module_prefix
+from clustering.cluster_labeler import ClusterLabeler, _module_prefix, _tokenize
 from clustering.cluster_quality import ClusterQualityEvaluator, ClusterQualityReport
 from clustering.cluster_store import ClusterStore
+from clustering.semantic_clusters import (
+    Cluster,
+    ClusterConfig,
+    ClusteringResult,
+    SemanticClusterer,
+)
 from embeddings.embedding_store import EmbeddingStore
 from embeddings.provider_factory import StubEmbeddingProvider
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_store(n: int = 20, dim: int = 16) -> EmbeddingStore:
     """Build a stub EmbeddingStore with n nodes."""
@@ -47,6 +48,7 @@ def _make_result(n_clusters: int = 3, size: int = 5) -> ClusteringResult:
 # ---------------------------------------------------------------------------
 # ClusterLabeler
 # ---------------------------------------------------------------------------
+
 
 class TestClusterLabeler:
     def test_tokenize_snake_case(self):
@@ -107,6 +109,7 @@ class TestClusterLabeler:
 # ClusterQualityEvaluator
 # ---------------------------------------------------------------------------
 
+
 class TestClusterQuality:
     def test_evaluate_returns_report(self):
         store = _make_store(n=30)
@@ -123,8 +126,7 @@ class TestClusterQuality:
             algorithm="stub",
         )
         # Add these specific nodes to the store
-        store.add_batch(["mod.a", "mod.b", "mod.c", "mod.d", "mod.e"],
-                        ["a", "b", "c", "d", "e"])
+        store.add_batch(["mod.a", "mod.b", "mod.c", "mod.d", "mod.e"], ["a", "b", "c", "d", "e"])
         evaluator = ClusterQualityEvaluator()
         report = evaluator.evaluate(result, store)
         # 2 noise out of 5 total = 0.4
@@ -143,9 +145,12 @@ class TestClusterQuality:
 
     def test_quality_report_str(self):
         report = ClusterQualityReport(
-            silhouette_score=0.35, mean_cohesion=0.6,
-            mean_separation=1.2, noise_ratio=0.1,
-            n_clusters=4, n_noise=3,
+            silhouette_score=0.35,
+            mean_cohesion=0.6,
+            mean_separation=1.2,
+            noise_ratio=0.1,
+            n_clusters=4,
+            n_noise=3,
         )
         s = str(report)
         assert "clusters=4" in s
@@ -161,6 +166,7 @@ class TestClusterQuality:
 # ---------------------------------------------------------------------------
 # ClusterStore
 # ---------------------------------------------------------------------------
+
 
 class TestClusterStore:
     def test_save_and_load_roundtrip(self):
@@ -218,6 +224,7 @@ class TestClusterStore:
 # ---------------------------------------------------------------------------
 # SemanticClusterer integration (cluster_and_label + evaluate)
 # ---------------------------------------------------------------------------
+
 
 class TestSemanticClustererPhase5:
     def test_cluster_and_label_produces_labels(self):

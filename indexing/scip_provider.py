@@ -30,8 +30,8 @@ from typing import Optional
 
 from core.types import NodeKind
 from indexing.indexing_provider import (
-    IndexResult,
     IndexingProvider,
+    IndexResult,
     SymbolDefinition,
     SymbolOccurrence,
 )
@@ -40,33 +40,34 @@ logger = logging.getLogger(__name__)
 
 # SCIP symbol role bitmask values
 _ROLE_DEFINITION = 1
-_ROLE_REFERENCE  = 2
-_ROLE_WRITE      = 8
+_ROLE_REFERENCE = 2
+_ROLE_WRITE = 8
 
 # SCIP SymbolInformation.kind values (subset)
 _SCIP_KIND_MAP: dict[int, NodeKind] = {
-    1:  NodeKind.MODULE,      # Package
-    2:  NodeKind.MODULE,      # Namespace
-    3:  NodeKind.MODULE,      # Module
-    4:  NodeKind.CLASS,       # Class
-    5:  NodeKind.CLASS,       # Interface
-    6:  NodeKind.FUNCTION,    # Method
-    7:  NodeKind.VARIABLE,    # Property
-    8:  NodeKind.ENUM,        # Enum
-    9:  NodeKind.VARIABLE,    # EnumMember
-    10: NodeKind.FUNCTION,    # Function
-    11: NodeKind.VARIABLE,    # Variable
-    12: NodeKind.CONSTANT,    # Constant
-    13: NodeKind.STRUCT,      # Struct
-    14: NodeKind.TYPE,        # TypeParameter
-    15: NodeKind.VARIABLE,    # Parameter
-    16: NodeKind.NAMESPACE,   # Namespace (duplicate key — harmless)
+    1: NodeKind.MODULE,  # Package
+    2: NodeKind.MODULE,  # Namespace
+    3: NodeKind.MODULE,  # Module
+    4: NodeKind.CLASS,  # Class
+    5: NodeKind.CLASS,  # Interface
+    6: NodeKind.FUNCTION,  # Method
+    7: NodeKind.VARIABLE,  # Property
+    8: NodeKind.ENUM,  # Enum
+    9: NodeKind.VARIABLE,  # EnumMember
+    10: NodeKind.FUNCTION,  # Function
+    11: NodeKind.VARIABLE,  # Variable
+    12: NodeKind.CONSTANT,  # Constant
+    13: NodeKind.STRUCT,  # Struct
+    14: NodeKind.TYPE,  # TypeParameter
+    15: NodeKind.VARIABLE,  # Parameter
+    16: NodeKind.NAMESPACE,  # Namespace (duplicate key — harmless)
 }
 
 
 @dataclass
 class SCIPIndex:
     """In-memory representation of a parsed SCIP JSON index."""
+
     metadata: dict
     documents: list[dict]
     external_symbols: list[dict]
@@ -98,9 +99,7 @@ class SCIPProvider(IndexingProvider):
 
     def is_available(self) -> bool:
         return bool(
-            shutil.which("scip") or
-            shutil.which("scip-python") or
-            shutil.which("scip-typescript")
+            shutil.which("scip") or shutil.which("scip-python") or shutil.which("scip-typescript")
         )
 
     def index_file(self, file_path: Path, project_root: Path) -> IndexResult:
@@ -156,8 +155,9 @@ class SCIPProvider(IndexingProvider):
                     sym = sym_info.get("symbol", "")
                     if not sym:
                         continue
-                    defn = _parse_symbol_definition(sym, sym_info, project_root,
-                                                     file_path=abs_path, language=lang)
+                    defn = _parse_symbol_definition(
+                        sym, sym_info, project_root, file_path=abs_path, language=lang
+                    )
                     if defn:
                         sym_map[sym] = defn
                         result.definitions.append(defn)
@@ -167,15 +167,17 @@ class SCIPProvider(IndexingProvider):
                     roles = occ.get("symbolRoles", 0)
                     rng = occ.get("range", [0, 0, 0])
                     line = rng[0] + 1 if rng else 1
-                    col  = rng[1] if len(rng) > 1 else 0
+                    col = rng[1] if len(rng) > 1 else 0
                     role = _role_name(roles)
-                    result.occurrences.append(SymbolOccurrence(
-                        symbol=sym,
-                        file_path=abs_path,
-                        line=line,
-                        column=col,
-                        role=role,
-                    ))
+                    result.occurrences.append(
+                        SymbolOccurrence(
+                            symbol=sym,
+                            file_path=abs_path,
+                            line=line,
+                            column=col,
+                            role=role,
+                        )
+                    )
 
         except Exception as e:
             logger.error("SCIPProvider.load_index %s: %s", index_json_path, e)
@@ -201,13 +203,17 @@ class SCIPProvider(IndexingProvider):
             if language == "python" and shutil.which("scip-python"):
                 subprocess.run(
                     ["scip-python", "index", str(root), "--output", str(scip_path)],
-                    cwd=str(root), timeout=120, check=True,
+                    cwd=str(root),
+                    timeout=120,
+                    check=True,
                     capture_output=True,
                 )
             elif language in ("typescript", "javascript") and shutil.which("scip-typescript"):
                 subprocess.run(
                     ["scip-typescript", "index", "--output", str(scip_path)],
-                    cwd=str(root), timeout=120, check=True,
+                    cwd=str(root),
+                    timeout=120,
+                    check=True,
                     capture_output=True,
                 )
             else:
@@ -216,7 +222,9 @@ class SCIPProvider(IndexingProvider):
             if scip_path.exists() and shutil.which("scip"):
                 subprocess.run(
                     ["scip", "convert", "--from", str(scip_path), "--to", str(json_path)],
-                    timeout=60, check=True, capture_output=True,
+                    timeout=60,
+                    check=True,
+                    capture_output=True,
                 )
                 return json_path
 
@@ -235,6 +243,7 @@ class SCIPProvider(IndexingProvider):
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _parse_symbol_definition(
     symbol: str,
@@ -269,6 +278,7 @@ def _scip_symbol_to_qualified(symbol: str) -> str:
     descriptors = " ".join(parts[3:])
     # Strip trailing punctuation and backtick quoting
     import re
+
     name = re.sub(r"[().`/]+", ".", descriptors).strip(".")
     return name or symbol
 

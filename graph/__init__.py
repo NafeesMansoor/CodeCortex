@@ -1,8 +1,8 @@
 """Code Property Graph layer for CodeCortex."""
 
-from .schema import CPGEdge, CPGNode
-from .graph_store import GraphStore
 from .cpg_builder import CPGBuilder
+from .graph_store import GraphStore
+from .schema import CPGEdge, CPGNode
 
 __all__ = [
     "CPGNode",

@@ -3,22 +3,20 @@
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.types import NodeKind, EdgeKind
 from core.parsers import PythonParser
-from graph.graph_store import GraphStore
-from graph.cpg_builder import CPGBuilder
+from core.types import EdgeKind, NodeKind
 from graph.cfg_builder import CFGBuilder
+from graph.cpg_builder import CPGBuilder
 from graph.dfg_builder import DFGBuilder
 from graph.endpoint_detector import EndpointDetector, _extract_http_method, _extract_route_path
-
+from graph.graph_store import GraphStore
 
 # ---------------------------------------------------------------------------
 # NodeKind / EdgeKind taxonomy
 # ---------------------------------------------------------------------------
+
 
 class TestNodeKindTaxonomy:
     def test_method_kind_exists(self):
@@ -41,6 +39,7 @@ class TestNodeKindTaxonomy:
 # ---------------------------------------------------------------------------
 # METHOD vs FUNCTION distinction
 # ---------------------------------------------------------------------------
+
 
 class TestMethodVsFunction:
     def _parse(self, source: str, path: str = "sample.py"):
@@ -70,6 +69,7 @@ class TestMethodVsFunction:
 # TESTS edges
 # ---------------------------------------------------------------------------
 
+
 class TestTestsEdges:
     def test_tests_edge_emitted(self):
         src = "def create_user():\n    pass\n\ndef test_create_user():\n    create_user()\n"
@@ -86,11 +86,13 @@ class TestTestsEdges:
 # CFG builder
 # ---------------------------------------------------------------------------
 
+
 class TestCFGBuilder:
     def _tree_and_source(self, src: str):
         import tree_sitter_language_pack as tslp
+
         parser = tslp.get_parser("python")
-        tree = parser.parse(src.encode())
+        tree = parser.parse(src)
         return tree, src
 
     def test_controls_edges_from_if(self):
@@ -130,11 +132,13 @@ class TestCFGBuilder:
 # DFG builder
 # ---------------------------------------------------------------------------
 
+
 class TestDFGBuilder:
     def _tree_and_source(self, src: str):
         import tree_sitter_language_pack as tslp
+
         parser = tslp.get_parser("python")
-        tree = parser.parse(src.encode())
+        tree = parser.parse(src)
         return tree, src
 
     def test_writes_edge_from_assignment(self):
@@ -163,11 +167,13 @@ class TestDFGBuilder:
 # Endpoint detector
 # ---------------------------------------------------------------------------
 
+
 class TestEndpointDetector:
     def _tree(self, src: str, lang: str = "python"):
         import tree_sitter_language_pack as tslp
+
         parser = tslp.get_parser(lang)
-        return parser.parse(src.encode()), src
+        return parser.parse(src), src
 
     def test_fastapi_get_detected(self):
         src = (
@@ -206,6 +212,7 @@ class TestEndpointDetector:
 # Full CPG integration — CFG+DFG+endpoints wired together
 # ---------------------------------------------------------------------------
 
+
 class TestCPGBuilderPhase3:
     SOURCE = """
 from fastapi import APIRouter
@@ -241,18 +248,23 @@ def test_get_user():
     def test_controls_edges_present(self):
         store = GraphStore(":memory:")
         builder = CPGBuilder(store, enable_cfg=True, enable_dfg=False, enable_endpoints=False)
-        builder.ingest(PythonParser().parse(
-            "def f():\n    if True:\n        g()\ndef g():\n    pass\n", "s.py"
-        ))
+        builder.ingest(
+            PythonParser().parse(
+                "def f():\n    if True:\n        g()\ndef g():\n    pass\n", "s.py"
+            )
+        )
         controls = [e for e in store.all_edges() if e.kind == EdgeKind.CONTROLS]
         assert len(controls) >= 1
 
     def test_writes_edges_present(self):
         store = GraphStore(":memory:")
         builder = CPGBuilder(store, enable_cfg=False, enable_dfg=True, enable_endpoints=False)
-        builder.ingest(PythonParser().parse(
-            "def foo():\n    result = bar()\n    return result\ndef bar():\n    return 1\n", "s.py"
-        ))
+        builder.ingest(
+            PythonParser().parse(
+                "def foo():\n    result = bar()\n    return result\ndef bar():\n    return 1\n",
+                "s.py",
+            )
+        )
         writes = [e for e in store.all_edges() if e.kind == EdgeKind.WRITES]
         assert len(writes) >= 1
 

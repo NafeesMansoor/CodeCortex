@@ -15,8 +15,8 @@ from typing import Optional
 
 from core.types import NodeKind
 from indexing.indexing_provider import (
-    IndexResult,
     IndexingProvider,
+    IndexResult,
     SymbolDefinition,
     SymbolOccurrence,
 )
@@ -24,13 +24,13 @@ from indexing.indexing_provider import (
 logger = logging.getLogger(__name__)
 
 _JEDI_KIND_MAP: dict[str, NodeKind] = {
-    "class":     NodeKind.CLASS,
-    "function":  NodeKind.FUNCTION,
-    "module":    NodeKind.MODULE,
-    "instance":  NodeKind.VARIABLE,
+    "class": NodeKind.CLASS,
+    "function": NodeKind.FUNCTION,
+    "module": NodeKind.MODULE,
+    "instance": NodeKind.VARIABLE,
     "statement": NodeKind.VARIABLE,
-    "param":     NodeKind.VARIABLE,
-    "keyword":   NodeKind.VARIABLE,
+    "param": NodeKind.VARIABLE,
+    "keyword": NodeKind.VARIABLE,
 }
 
 
@@ -55,6 +55,7 @@ class JediProvider(IndexingProvider):
     def is_available(self) -> bool:
         try:
             import jedi  # noqa: F401
+
             return True
         except ImportError:
             return False
@@ -88,17 +89,19 @@ class JediProvider(IndexingProvider):
             combined.definitions.extend(r.definitions)
             combined.occurrences.extend(r.occurrences)
             combined.errors.extend(r.errors)
-        logger.debug("jedi indexed %d files → %d defs, %d occurrences",
-                     len(py_files), len(combined.definitions), len(combined.occurrences))
+        logger.debug(
+            "jedi indexed %d files → %d defs, %d occurrences",
+            len(py_files),
+            len(combined.definitions),
+            len(combined.occurrences),
+        )
         return combined
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _extract_definitions(
-        self, script, file_path: Path
-    ) -> list[SymbolDefinition]:
+    def _extract_definitions(self, script, file_path: Path) -> list[SymbolDefinition]:
         defs: list[SymbolDefinition] = []
         try:
             names = script.get_names(all_scopes=True, definitions=True, references=False)
@@ -113,24 +116,24 @@ class JediProvider(IndexingProvider):
                 qname = _qualified_name(name)
                 if not qname:
                     continue
-                defs.append(SymbolDefinition(
-                    qualified_name=qname,
-                    kind=kind,
-                    file_path=str(file_path),
-                    line=name.line or 0,
-                    column=name.column or 0,
-                    language="python",
-                    module_path=_module_from_path(file_path),
-                    display_name=name.name,
-                ))
+                defs.append(
+                    SymbolDefinition(
+                        qualified_name=qname,
+                        kind=kind,
+                        file_path=str(file_path),
+                        line=name.line or 0,
+                        column=name.column or 0,
+                        language="python",
+                        module_path=_module_from_path(file_path),
+                        display_name=name.name,
+                    )
+                )
             except Exception:
                 continue
 
         return defs
 
-    def _extract_occurrences(
-        self, script, source: str, file_path: Path
-    ) -> list[SymbolOccurrence]:
+    def _extract_occurrences(self, script, source: str, file_path: Path) -> list[SymbolOccurrence]:
         """Walk every call expression and resolve its definition via jedi.goto."""
         occurrences: list[SymbolOccurrence] = []
         lines = source.splitlines()
@@ -156,13 +159,15 @@ class JediProvider(IndexingProvider):
                     definitions = script.goto(lineno, start)
                     for d in definitions:
                         if d.module_path and d.full_name:
-                            occurrences.append(SymbolOccurrence(
-                                symbol=d.full_name,
-                                file_path=str(file_path),
-                                line=lineno,
-                                column=start,
-                                role="reference",
-                            ))
+                            occurrences.append(
+                                SymbolOccurrence(
+                                    symbol=d.full_name,
+                                    file_path=str(file_path),
+                                    line=lineno,
+                                    column=start,
+                                    role="reference",
+                                )
+                            )
                             break
                 except Exception:
                     pass
@@ -175,6 +180,7 @@ class JediProvider(IndexingProvider):
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _qualified_name(name) -> Optional[str]:
     """Build a qualified name from a jedi Name object."""

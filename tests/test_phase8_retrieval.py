@@ -3,28 +3,25 @@
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.types import EdgeKind, NodeKind
-from graph.graph_store import GraphStore
-from graph.schema import CPGEdge, CPGNode
 from embeddings.embedding_store import EmbeddingStore
 from embeddings.provider_factory import StubEmbeddingProvider
+from graph.graph_store import GraphStore
+from graph.schema import CPGEdge, CPGNode
+from ranking.centrality_engine import CentralityEngine
 from retrieval.retrieval_layer import (
-    ImpactSummary,
     RetrievalConfig,
     RetrievalLayer,
     RetrievalResult,
     _depth_to_score,
 )
-from ranking.centrality_engine import CentralityEngine, NodeScore
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 def _app_graph() -> GraphStore:
     """
@@ -63,6 +60,7 @@ def _layer(store: GraphStore, min_semantic: float = 0.0) -> RetrievalLayer:
 # RetrievalResult
 # ---------------------------------------------------------------------------
 
+
 class TestRetrievalResult:
     def test_to_dict_keys(self):
         r = RetrievalResult("mod.func", 0.75, 0.8, 0.5, 0.3, 0.0, "mod.py")
@@ -86,6 +84,7 @@ class TestRetrievalResult:
 # ---------------------------------------------------------------------------
 # Core retrieval
 # ---------------------------------------------------------------------------
+
 
 class TestRetrievalCore:
     def test_retrieve_returns_list(self):
@@ -141,6 +140,7 @@ class TestRetrievalCore:
 # Context generation
 # ---------------------------------------------------------------------------
 
+
 class TestContextGeneration:
     def test_generate_context_is_string(self):
         store = _app_graph()
@@ -173,6 +173,7 @@ class TestContextGeneration:
 # ---------------------------------------------------------------------------
 # Impact summary
 # ---------------------------------------------------------------------------
+
 
 class TestImpactSummary:
     def test_impact_summary_root(self):

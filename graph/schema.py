@@ -15,7 +15,7 @@ class CPGNode:
     Represents a structural code entity: file, class, function, variable, etc.
     """
 
-    qualified_name: str       # Globally unique identifier (e.g., "pkg.Class.method")
+    qualified_name: str  # Globally unique identifier (e.g., "pkg.Class.method")
     kind: NodeKind
     name: str
     file_path: str
@@ -43,8 +43,8 @@ class CPGEdge:
     """A directed edge in the Code Property Graph."""
 
     kind: EdgeKind
-    source: str   # Source node qualified_name
-    target: str   # Target node qualified_name
+    source: str  # Source node qualified_name
+    target: str  # Target node qualified_name
     file_path: str = ""
     confidence: float = 1.0
     extra: dict[str, Any] = field(default_factory=dict)

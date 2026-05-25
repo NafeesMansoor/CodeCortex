@@ -2,16 +2,18 @@
 
 import json
 import sys
-import tempfile
 from pathlib import Path
-
-import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from core.parsers import PythonParser
+from core.types import NodeKind
+from graph.cpg_builder import CPGBuilder
+from graph.graph_store import GraphStore
+from indexing.graph_enricher import EnrichmentStats, GraphEnricher
 from indexing.indexing_provider import (
-    IndexResult,
     IndexingProvider,
+    IndexResult,
     ProviderRegistry,
     SymbolDefinition,
     SymbolOccurrence,
@@ -19,19 +21,14 @@ from indexing.indexing_provider import (
 from indexing.jedi_provider import JediProvider
 from indexing.reference_graph import ReferenceGraph
 from indexing.scip_provider import SCIPProvider, _scip_symbol_to_qualified
-from indexing.symbol_cache import SymbolCache
-from indexing.graph_enricher import GraphEnricher, EnrichmentStats
-from indexing.symbol_resolver import SymbolResolver
 from indexing.semantic_index import SemanticIndex
-from core.types import NodeKind, EdgeKind
-from graph.graph_store import GraphStore
-from graph.cpg_builder import CPGBuilder
-from core.parsers import PythonParser
-
+from indexing.symbol_cache import SymbolCache
+from indexing.symbol_resolver import SymbolResolver
 
 # ---------------------------------------------------------------------------
 # ProviderRegistry
 # ---------------------------------------------------------------------------
+
 
 class TestProviderRegistry:
     def test_register_and_best_for(self):
@@ -45,9 +42,15 @@ class TestProviderRegistry:
         class BrokenProvider(IndexingProvider):
             priority = 1
             name = "broken"
-            def supports(self, lang): return lang == "python"
-            def is_available(self): return False
-            def index_file(self, f, r): return IndexResult()
+
+            def supports(self, lang):
+                return lang == "python"
+
+            def is_available(self):
+                return False
+
+            def index_file(self, f, r):
+                return IndexResult()
 
         registry = ProviderRegistry()
         registry.register(BrokenProvider())
@@ -57,16 +60,28 @@ class TestProviderRegistry:
         class Hi(IndexingProvider):
             priority = 1
             name = "hi"
-            def supports(self, l): return True
-            def is_available(self): return True
-            def index_file(self, f, r): return IndexResult()
+
+            def supports(self, lang):
+                return True
+
+            def is_available(self):
+                return True
+
+            def index_file(self, f, r):
+                return IndexResult()
 
         class Lo(IndexingProvider):
             priority = 99
             name = "lo"
-            def supports(self, l): return True
-            def is_available(self): return True
-            def index_file(self, f, r): return IndexResult()
+
+            def supports(self, lang):
+                return True
+
+            def is_available(self):
+                return True
+
+            def index_file(self, f, r):
+                return IndexResult()
 
         registry = ProviderRegistry()
         registry.register(Lo())
@@ -78,6 +93,7 @@ class TestProviderRegistry:
 # ---------------------------------------------------------------------------
 # JediProvider
 # ---------------------------------------------------------------------------
+
 
 class TestJediProvider:
     def test_supports_python_only(self):
@@ -128,6 +144,7 @@ class Greeter:
 # SCIPProvider
 # ---------------------------------------------------------------------------
 
+
 class TestSCIPProvider:
     def test_supports_python_typescript(self):
         p = SCIPProvider()
@@ -143,14 +160,22 @@ class TestSCIPProvider:
                     "relativePath": "src/foo.py",
                     "language": "python",
                     "symbols": [
-                        {"symbol": "python . pkg src/foo.py `bar`().", "displayName": "bar", "kind": 10}
+                        {
+                            "symbol": "python . pkg src/foo.py `bar`().",
+                            "displayName": "bar",
+                            "kind": 10,
+                        }
                     ],
                     "occurrences": [
-                        {"range": [5, 0, 3], "symbol": "python . pkg src/foo.py `bar`().", "symbolRoles": 1}
-                    ]
+                        {
+                            "range": [5, 0, 3],
+                            "symbol": "python . pkg src/foo.py `bar`().",
+                            "symbolRoles": 1,
+                        }
+                    ],
                 }
             ],
-            "externalSymbols": []
+            "externalSymbols": [],
         }
         index_path = tmp_path / "index.json"
         index_path.write_text(json.dumps(index_data))
@@ -179,6 +204,7 @@ class TestSCIPProvider:
 # ---------------------------------------------------------------------------
 # ReferenceGraph
 # ---------------------------------------------------------------------------
+
 
 class TestReferenceGraph:
     def test_add_and_retrieve(self):
@@ -227,6 +253,7 @@ class TestReferenceGraph:
 # SymbolCache
 # ---------------------------------------------------------------------------
 
+
 class TestSymbolCache:
     def test_put_and_get(self):
         cache = SymbolCache(":memory:")
@@ -246,8 +273,12 @@ class TestSymbolCache:
 
     def test_search_prefix(self):
         cache = SymbolCache(":memory:")
-        cache.put(SymbolDefinition("mod.helper", NodeKind.FUNCTION, "mod.py", 1, display_name="helper"))
-        cache.put(SymbolDefinition("mod.Helper", NodeKind.CLASS, "mod.py", 5, display_name="Helper"))
+        cache.put(
+            SymbolDefinition("mod.helper", NodeKind.FUNCTION, "mod.py", 1, display_name="helper")
+        )
+        cache.put(
+            SymbolDefinition("mod.Helper", NodeKind.CLASS, "mod.py", 5, display_name="Helper")
+        )
         results = cache.search("help")
         assert len(results) >= 1
 
@@ -269,7 +300,9 @@ class TestSymbolCache:
     def test_put_many(self):
         cache = SymbolCache(":memory:")
         defs = [
-            SymbolDefinition(f"mod.func{i}", NodeKind.FUNCTION, "mod.py", i, display_name=f"func{i}")
+            SymbolDefinition(
+                f"mod.func{i}", NodeKind.FUNCTION, "mod.py", i, display_name=f"func{i}"
+            )
             for i in range(10)
         ]
         cache.put_many(defs)
@@ -279,6 +312,7 @@ class TestSymbolCache:
 # ---------------------------------------------------------------------------
 # GraphEnricher
 # ---------------------------------------------------------------------------
+
 
 class TestGraphEnricher:
     def _build_simple_graph(self):
@@ -332,18 +366,21 @@ def bar():
 # SymbolResolver with cache
 # ---------------------------------------------------------------------------
 
+
 class TestSymbolResolverWithCache:
     def test_resolves_via_cache(self):
         store = GraphStore(":memory:")
         idx = SemanticIndex(store)
         cache = SymbolCache(":memory:")
-        cache.put(SymbolDefinition(
-            "pkg.utils.my_func",
-            NodeKind.FUNCTION,
-            "pkg/utils.py",
-            line=5,
-            display_name="my_func",
-        ))
+        cache.put(
+            SymbolDefinition(
+                "pkg.utils.my_func",
+                NodeKind.FUNCTION,
+                "pkg/utils.py",
+                line=5,
+                display_name="my_func",
+            )
+        )
 
         resolver = SymbolResolver(idx, symbol_cache=cache)
         result = resolver.resolve("my_func", context_file="pkg/utils.py")

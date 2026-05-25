@@ -94,8 +94,8 @@ class EmbeddingPipeline:
 
         # Batch embed
         for i in range(0, len(names), batch_size):
-            batch_names = names[i:i + batch_size]
-            batch_texts = texts[i:i + batch_size]
+            batch_names = names[i : i + batch_size]
+            batch_texts = texts[i : i + batch_size]
             try:
                 self.embedding_store.add_batch(batch_names, batch_texts)
                 stats.nodes_embedded += len(batch_names)
@@ -134,10 +134,7 @@ class EmbeddingPipeline:
         stats = PipelineStats()
         t0 = time.perf_counter()
 
-        nodes = [
-            self.graph_store.get_node(qn)
-            for qn in qualified_names
-        ]
+        nodes = [self.graph_store.get_node(qn) for qn in qualified_names]
         nodes = [n for n in nodes if n is not None]
         names, texts = self.embedder.embed_texts_for_store(nodes)
 
@@ -201,8 +198,9 @@ class EmbeddingPipeline:
     def save_index(self, path: Path) -> None:
         """Persist the FAISS index to disk."""
         try:
-            import faiss
             import pickle
+
+            import faiss
 
             faiss_idx = getattr(self.embedding_store, "_faiss_index", None)
             if faiss_idx is not None:
@@ -223,8 +221,9 @@ class EmbeddingPipeline:
     def load_index(self, path: Path) -> bool:
         """Load a previously saved FAISS index. Returns True on success."""
         try:
-            import faiss
             import pickle
+
+            import faiss
 
             faiss_path = path.with_suffix(".faiss")
             meta_path = path.with_suffix(".meta")
@@ -236,8 +235,9 @@ class EmbeddingPipeline:
 
             if meta_path.exists():
                 with open(meta_path, "rb") as f:
-                    meta = pickle.load(f)
+                    meta = pickle.load(f)  # nosec B301 — local cache file written by this process
                 from embeddings.embedding_store import EmbeddedItem
+
                 for name, data in meta["items"].items():
                     self.embedding_store._items[name] = EmbeddedItem(
                         qualified_name=name,

@@ -5,11 +5,10 @@ Provides the runtime graph used by TraversalEngine and CPGBuilder.
 
 from __future__ import annotations
 
+import json
 import logging
 import sqlite3
-import json
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Generator, Optional
 
 from core.types import EdgeKind, NodeKind
@@ -131,9 +130,7 @@ class GraphStore:
         return [self._row_to_node(r) for r in rows]
 
     def get_nodes_by_kind(self, kind: NodeKind) -> list[CPGNode]:
-        rows = self._conn.execute(
-            "SELECT * FROM nodes WHERE kind = ?", (kind.value,)
-        ).fetchall()
+        rows = self._conn.execute("SELECT * FROM nodes WHERE kind = ?", (kind.value,)).fetchall()
         return [self._row_to_node(r) for r in rows]
 
     def all_nodes(self) -> list[CPGNode]:
@@ -177,9 +174,7 @@ class GraphStore:
         return [self._row_to_edge(r) for r in rows]
 
     def get_edges_by_kind(self, kind: EdgeKind) -> list[CPGEdge]:
-        rows = self._conn.execute(
-            "SELECT * FROM edges WHERE kind = ?", (kind.value,)
-        ).fetchall()
+        rows = self._conn.execute("SELECT * FROM edges WHERE kind = ?", (kind.value,)).fetchall()
         return [self._row_to_edge(r) for r in rows]
 
     def all_edges(self) -> list[CPGEdge]:
@@ -212,9 +207,7 @@ class GraphStore:
             name=row["name"],
             file_path=row["file_path"],
             language=row["language"] or "",
-            range=SourceRange(row["range_start"], row["range_end"])
-            if row["range_start"]
-            else None,
+            range=SourceRange(row["range_start"], row["range_end"]) if row["range_start"] else None,
             parent_qualified=row["parent_qualified"],
             is_test=bool(row["is_test"]),
             extra=json.loads(row["extra"] or "{}"),

@@ -28,7 +28,7 @@ def _children(node) -> list:
 
 
 def _extract_text(node, source: str) -> str:
-    text = source[node.start_byte():node.end_byte()]
+    text = source[node.start_byte() : node.end_byte()]
     return text.strip()
 
 
@@ -87,30 +87,34 @@ class PHPParser(LanguageParser):
             if kind == "function_definition":
                 name = self._get_name(node, source)
                 if name:
-                    nodes.append(NodeInfo(
-                        kind=NodeKind.FUNCTION,
-                        name=name,
-                        file_path=fp,
-                        range=SourceRange(_start_line(node), _end_line(node)),
-                        language=self.language,
-                        parent_name=parent_class,
-                    ))
+                    nodes.append(
+                        NodeInfo(
+                            kind=NodeKind.FUNCTION,
+                            name=name,
+                            file_path=fp,
+                            range=SourceRange(_start_line(node), _end_line(node)),
+                            language=self.language,
+                            parent_name=parent_class,
+                        )
+                    )
 
             if kind == "method_declaration":
                 name = self._get_name(node, source)
                 if name:
                     modifiers = self._get_modifiers(node, source)
                     is_test = name.startswith("test")
-                    nodes.append(NodeInfo(
-                        kind=NodeKind.TEST if is_test else NodeKind.FUNCTION,
-                        name=name,
-                        file_path=fp,
-                        range=SourceRange(_start_line(node), _end_line(node)),
-                        language=self.language,
-                        parent_name=parent_class,
-                        modifiers=modifiers,
-                        is_test=is_test,
-                    ))
+                    nodes.append(
+                        NodeInfo(
+                            kind=NodeKind.TEST if is_test else NodeKind.FUNCTION,
+                            name=name,
+                            file_path=fp,
+                            range=SourceRange(_start_line(node), _end_line(node)),
+                            language=self.language,
+                            parent_name=parent_class,
+                            modifiers=modifiers,
+                            is_test=is_test,
+                        )
+                    )
 
             new_class = parent_class
             if kind == "class_declaration":
@@ -131,12 +135,14 @@ class PHPParser(LanguageParser):
             if kind in ("function_call_expression", "member_call_expression"):
                 target = self._get_call_target(node, source)
                 if target and enclosing:
-                    edges.append(EdgeInfo(
-                        kind=EdgeKind.CALLS,
-                        source_qualified=enclosing,
-                        target_qualified=target,
-                        file_path=fp,
-                    ))
+                    edges.append(
+                        EdgeInfo(
+                            kind=EdgeKind.CALLS,
+                            source_qualified=enclosing,
+                            target_qualified=target,
+                            file_path=fp,
+                        )
+                    )
 
             new_enc = enclosing
             if kind in ("function_definition", "method_declaration"):
@@ -160,21 +166,25 @@ class PHPParser(LanguageParser):
                             if use_name.kind() == "name":
                                 target = _extract_text(use_name, source)
                                 if target:
-                                    edges.append(EdgeInfo(
-                                        kind=EdgeKind.IMPORTS_FROM,
-                                        source_qualified="__module__",
-                                        target_qualified=target,
-                                        file_path=fp,
-                                    ))
+                                    edges.append(
+                                        EdgeInfo(
+                                            kind=EdgeKind.IMPORTS_FROM,
+                                            source_qualified="__module__",
+                                            target_qualified=target,
+                                            file_path=fp,
+                                        )
+                                    )
                     elif child.kind() == "qualified_name":
                         target = _extract_text(child, source)
                         if target:
-                            edges.append(EdgeInfo(
-                                kind=EdgeKind.IMPORTS_FROM,
-                                source_qualified="__module__",
-                                target_qualified=target,
-                                file_path=fp,
-                            ))
+                            edges.append(
+                                EdgeInfo(
+                                    kind=EdgeKind.IMPORTS_FROM,
+                                    source_qualified="__module__",
+                                    target_qualified=target,
+                                    file_path=fp,
+                                )
+                            )
             for child in _children(node):
                 visit(child)
 
@@ -194,23 +204,27 @@ class PHPParser(LanguageParser):
                             if base.kind() in ("qualified_name", "name"):
                                 base_name = _extract_text(base, source)
                                 if base_name and class_name:
-                                    edges.append(EdgeInfo(
-                                        kind=EdgeKind.INHERITS,
-                                        source_qualified=class_name,
-                                        target_qualified=base_name,
-                                        file_path=fp,
-                                    ))
+                                    edges.append(
+                                        EdgeInfo(
+                                            kind=EdgeKind.INHERITS,
+                                            source_qualified=class_name,
+                                            target_qualified=base_name,
+                                            file_path=fp,
+                                        )
+                                    )
                     elif child.kind() == "class_implements":
                         for iface in _children(child):
                             if iface.kind() in ("qualified_name", "name"):
                                 iface_name = _extract_text(iface, source)
                                 if iface_name and class_name:
-                                    edges.append(EdgeInfo(
-                                        kind=EdgeKind.IMPLEMENTS,
-                                        source_qualified=class_name,
-                                        target_qualified=iface_name,
-                                        file_path=fp,
-                                    ))
+                                    edges.append(
+                                        EdgeInfo(
+                                            kind=EdgeKind.IMPLEMENTS,
+                                            source_qualified=class_name,
+                                            target_qualified=iface_name,
+                                            file_path=fp,
+                                        )
+                                    )
             for child in _children(node):
                 visit(child)
 
@@ -226,34 +240,40 @@ class PHPParser(LanguageParser):
             if kind == "class_declaration":
                 name = self._get_name(node, source)
                 if name:
-                    nodes.append(NodeInfo(
-                        kind=NodeKind.CLASS,
-                        name=name,
-                        file_path=fp,
-                        range=SourceRange(_start_line(node), _end_line(node)),
-                        language=self.language,
-                    ))
+                    nodes.append(
+                        NodeInfo(
+                            kind=NodeKind.CLASS,
+                            name=name,
+                            file_path=fp,
+                            range=SourceRange(_start_line(node), _end_line(node)),
+                            language=self.language,
+                        )
+                    )
             elif kind == "interface_declaration":
                 name = self._get_name(node, source)
                 if name:
-                    nodes.append(NodeInfo(
-                        kind=NodeKind.INTERFACE,
-                        name=name,
-                        file_path=fp,
-                        range=SourceRange(_start_line(node), _end_line(node)),
-                        language=self.language,
-                    ))
+                    nodes.append(
+                        NodeInfo(
+                            kind=NodeKind.INTERFACE,
+                            name=name,
+                            file_path=fp,
+                            range=SourceRange(_start_line(node), _end_line(node)),
+                            language=self.language,
+                        )
+                    )
             elif kind == "trait_declaration":
                 name = self._get_name(node, source)
                 if name:
-                    nodes.append(NodeInfo(
-                        kind=NodeKind.CLASS,
-                        name=name,
-                        file_path=fp,
-                        range=SourceRange(_start_line(node), _end_line(node)),
-                        language=self.language,
-                        extra={"is_trait": True},
-                    ))
+                    nodes.append(
+                        NodeInfo(
+                            kind=NodeKind.CLASS,
+                            name=name,
+                            file_path=fp,
+                            range=SourceRange(_start_line(node), _end_line(node)),
+                            language=self.language,
+                            extra={"is_trait": True},
+                        )
+                    )
             for child in _children(node):
                 visit(child)
 
@@ -268,15 +288,17 @@ class PHPParser(LanguageParser):
             if node.kind() == "method_declaration":
                 name = self._get_name(node, source)
                 if name and name.startswith("test"):
-                    nodes.append(NodeInfo(
-                        kind=NodeKind.TEST,
-                        name=name,
-                        file_path=fp,
-                        range=SourceRange(_start_line(node), _end_line(node)),
-                        language=self.language,
-                        parent_name=parent_class,
-                        is_test=True,
-                    ))
+                    nodes.append(
+                        NodeInfo(
+                            kind=NodeKind.TEST,
+                            name=name,
+                            file_path=fp,
+                            range=SourceRange(_start_line(node), _end_line(node)),
+                            language=self.language,
+                            parent_name=parent_class,
+                            is_test=True,
+                        )
+                    )
 
             new_class = parent_class
             if node.kind() == "class_declaration":

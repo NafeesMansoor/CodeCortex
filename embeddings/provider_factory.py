@@ -12,8 +12,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Optional
 
-import numpy as np
-
 logger = logging.getLogger(__name__)
 
 
@@ -21,11 +19,11 @@ logger = logging.getLogger(__name__)
 class EmbeddingConfig:
     """Configuration for an embedding provider."""
 
-    provider: str = "local"           # local | openai | stub
+    provider: str = "local"  # local | openai | stub
     model_name: str = "all-MiniLM-L6-v2"
     api_key: Optional[str] = None
-    api_base: Optional[str] = None    # For OpenAI-compatible endpoints
-    dimensions: int = 384             # Expected embedding dimension
+    api_base: Optional[str] = None  # For OpenAI-compatible endpoints
+    dimensions: int = 384  # Expected embedding dimension
     batch_size: int = 64
     extra: dict = field(default_factory=dict)
 
@@ -65,6 +63,7 @@ class LocalEmbeddingProvider(EmbeddingProvider):
         if self._model is None:
             try:
                 from sentence_transformers import SentenceTransformer
+
                 self._model = SentenceTransformer(self._model_name)
                 logger.info("Loaded sentence-transformers model: %s", self._model_name)
             except ImportError:
@@ -80,7 +79,7 @@ class LocalEmbeddingProvider(EmbeddingProvider):
             texts,
             batch_size=self._batch_size,
             show_progress_bar=False,
-            normalize_embeddings=True,   # L2-normalize for cosine similarity via IP
+            normalize_embeddings=True,  # L2-normalize for cosine similarity via IP
             convert_to_numpy=True,
         )
         return [v.tolist() for v in vectors]
@@ -161,6 +160,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         if self._client is None:
             try:
                 from openai import OpenAI
+
                 kwargs = {}
                 if self._api_key:
                     kwargs["api_key"] = self._api_key
@@ -235,6 +235,5 @@ def create_embedding_provider(config: EmbeddingConfig) -> EmbeddingProvider:
         return StubEmbeddingProvider(dimensions=config.dimensions)
 
     raise ValueError(
-        f"Unknown embedding provider: {config.provider!r}. "
-        "Supported: local, openai, stub"
+        f"Unknown embedding provider: {config.provider!r}. Supported: local, openai, stub"
     )

@@ -9,11 +9,9 @@ from __future__ import annotations
 import json
 import sqlite3
 from contextlib import closing
-from dataclasses import dataclass
 from typing import Optional
 
 from clustering.semantic_clusters import Cluster, ClusteringResult
-
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS clusters (
@@ -61,11 +59,13 @@ class ClusterStore:
 
             all_clusters = list(result.clusters)
             if result.noise_members:
-                all_clusters.append(Cluster(
-                    cluster_id=-1,
-                    members=result.noise_members,
-                    label="noise",
-                ))
+                all_clusters.append(
+                    Cluster(
+                        cluster_id=-1,
+                        members=result.noise_members,
+                        label="noise",
+                    )
+                )
 
             for cluster in all_clusters:
                 centroid_json = json.dumps(cluster.centroid) if cluster.centroid else None

@@ -18,11 +18,11 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from core.types import TraversalConfig
-from graph.graph_store import GraphStore
-from traversal.traversal_engine import AdjacencyCache, TraversalEngine
-from traversal.query_optimizer import OptimizationHints, QueryOptimizer
 from embeddings.embedding_store import EmbeddingStore
+from graph.graph_store import GraphStore
 from ranking.centrality_engine import CentralityEngine, NodeScore
+from traversal.query_optimizer import OptimizationHints, QueryOptimizer
+from traversal.traversal_engine import AdjacencyCache, TraversalEngine
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +81,7 @@ class ImpactSummary:
 
     root: str
     direct_callers: list[str]
-    transitive_affected: dict[str, int]    # qname → depth
+    transitive_affected: dict[str, int]  # qname → depth
     affected_files: list[str]
     affected_tests: list[str]
     max_depth: int
@@ -172,15 +172,17 @@ class RetrievalLayer:
             )
 
             node = self.store.get_node(qname)
-            results.append(RetrievalResult(
-                qualified_name=qname,
-                score=score,
-                semantic_score=sem,
-                graph_score=graph,
-                centrality_score=cent,
-                cluster_score=clust,
-                file_path=node.file_path if node else "",
-            ))
+            results.append(
+                RetrievalResult(
+                    qualified_name=qname,
+                    score=score,
+                    semantic_score=sem,
+                    graph_score=graph,
+                    centrality_score=cent,
+                    cluster_score=clust,
+                    file_path=node.file_path if node else "",
+                )
+            )
 
         results.sort(key=lambda r: r.score, reverse=True)
 
@@ -218,7 +220,7 @@ class RetrievalLayer:
                 f"   scores: sem={r.semantic_score:.3f}  graph={r.graph_score:.3f}"
                 f"  centrality={r.centrality_score:.4f}",
             ]
-            block = "\n".join(l for l in entry_lines if l)
+            block = "\n".join(line for line in entry_lines if line)
             if len("\n".join(lines)) + len(block) > char_budget:
                 lines.append(f"\n... {len(results) - i + 1} results omitted (token budget)")
                 break
@@ -240,13 +242,17 @@ class RetrievalLayer:
 
         # Direct callers (inbound CALLS/IMPORTS)
         in_edges = self.store.get_incoming_edges(qualified_name)
-        direct_callers = list({
-            e.source for e in in_edges
-            if e.kind in (EdgeKind.CALLS, EdgeKind.IMPORTS_FROM, EdgeKind.DEPENDS_ON)
-        })
+        direct_callers = list(
+            {
+                e.source
+                for e in in_edges
+                if e.kind in (EdgeKind.CALLS, EdgeKind.IMPORTS_FROM, EdgeKind.DEPENDS_ON)
+            }
+        )
 
         # Transitive affected (inbound BFS — who calls this, transitively)
         from core.types import TraversalConfig
+
         cfg = TraversalConfig(
             max_depth=max_depth,
             max_nodes=500,
@@ -255,8 +261,7 @@ class RetrievalLayer:
         )
         trav_results = self._traversal.bfs([qualified_name], cfg)
         transitive: dict[str, int] = {
-            r.qualified_name: r.depth for r in trav_results
-            if r.qualified_name != qualified_name
+            r.qualified_name: r.depth for r in trav_results if r.qualified_name != qualified_name
         }
 
         # Affected files
@@ -268,8 +273,10 @@ class RetrievalLayer:
 
         # Affected tests
         from core.types import NodeKind
+
         tests = [
-            qname for qname in transitive
+            qname
+            for qname in transitive
             if (n := self.store.get_node(qname)) and n.kind == NodeKind.TEST
         ]
 
@@ -312,7 +319,9 @@ class RetrievalLayer:
                 clusters.add(cid)
         return clusters
 
-    def _apply_token_budget(self, results: list[RetrievalResult], budget: int) -> list[RetrievalResult]:
+    def _apply_token_budget(
+        self, results: list[RetrievalResult], budget: int
+    ) -> list[RetrievalResult]:
         kept: list[RetrievalResult] = []
         tokens_used = 0
         for r in results:

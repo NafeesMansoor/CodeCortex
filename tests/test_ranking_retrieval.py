@@ -2,14 +2,13 @@
 
 import sys
 from pathlib import Path
-import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.types import EdgeKind, NodeKind, SourceRange
-from graph import CPGBuilder, CPGEdge, CPGNode, GraphStore
-from ranking import CentralityEngine, NodeScore
+from core.types import EdgeKind, NodeKind
 from embeddings import EmbeddingStore, StubEmbeddingProvider
+from graph import CPGEdge, CPGNode, GraphStore
+from ranking import CentralityEngine, NodeScore
 from retrieval import RetrievalConfig, RetrievalLayer
 
 
@@ -18,13 +17,15 @@ def _build_simple_graph() -> GraphStore:
     store = GraphStore(":memory:")
     nodes = ["A", "B", "C", "D", "E"]
     for name in nodes:
-        store.add_node(CPGNode(
-            qualified_name=name,
-            kind=NodeKind.FUNCTION,
-            name=name,
-            file_path="test.py",
-            language="python",
-        ))
+        store.add_node(
+            CPGNode(
+                qualified_name=name,
+                kind=NodeKind.FUNCTION,
+                name=name,
+                file_path="test.py",
+                language="python",
+            )
+        )
 
     store.add_edge(CPGEdge(EdgeKind.CALLS, "A", "B"))
     store.add_edge(CPGEdge(EdgeKind.CALLS, "B", "C"))
@@ -117,6 +118,7 @@ class TestRetrievalLayer:
 
     def test_result_to_dict(self):
         from retrieval import RetrievalResult
+
         r = RetrievalResult(
             qualified_name="mod.func",
             score=0.75,

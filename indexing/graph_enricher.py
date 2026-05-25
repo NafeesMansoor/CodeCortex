@@ -23,12 +23,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from core.types import EdgeKind, NodeKind
+from core.types import EdgeKind
 from graph.graph_store import GraphStore
-from graph.schema import CPGEdge, CPGNode
+from graph.schema import CPGEdge
 from indexing.indexing_provider import (
     IndexingProvider,
-    SymbolDefinition,
     SymbolOccurrence,
 )
 from indexing.reference_graph import ReferenceGraph
@@ -122,9 +121,7 @@ class GraphEnricher:
                 self._upgrade_edge(edge, resolved)
                 stats.edges_upgraded += 1
 
-        stats.files_processed = len(set(
-            d.file_path for d in index_result.definitions
-        ))
+        stats.files_processed = len(set(d.file_path for d in index_result.definitions))
         return stats
 
     def enrich_file(self, file_path: Path, project_root: Path) -> EnrichmentStats:
@@ -170,9 +167,7 @@ class GraphEnricher:
         is present in the graph store."""
         return "." in target and self.store.get_node(target) is not None
 
-    def _resolve_target(
-        self, edge: CPGEdge, occ_map: dict[tuple, str]
-    ) -> Optional[str]:
+    def _resolve_target(self, edge: CPGEdge, occ_map: dict[tuple, str]) -> Optional[str]:
         """Try multiple strategies to resolve an unqualified call target."""
         # 1. Direct symbol cache lookup (exact display name match)
         candidates = self.cache.search(edge.target, exact=True)
@@ -212,8 +207,7 @@ class GraphEnricher:
             self.store._conn.execute(
                 "INSERT OR IGNORE INTO edges(kind, source, target, file_path, confidence) "
                 "VALUES (?, ?, ?, ?, ?)",
-                (edge.kind.value, edge.source, resolved_target,
-                 edge.file_path, edge.confidence),
+                (edge.kind.value, edge.source, resolved_target, edge.file_path, edge.confidence),
             )
             self.store._conn.commit()
         except Exception as e:
@@ -223,6 +217,7 @@ class GraphEnricher:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _build_occurrence_map(
     occurrences: list[SymbolOccurrence],

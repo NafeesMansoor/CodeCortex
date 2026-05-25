@@ -25,7 +25,7 @@ def _end_line(node) -> int:
 
 
 def _node_text(node, source: str) -> str:
-    return source[node.start_byte():node.end_byte()]
+    return source[node.start_byte() : node.end_byte()]
 
 
 class JavaScriptParser(LanguageParser):
@@ -77,13 +77,15 @@ class JavaScriptParser(LanguageParser):
             if node.kind() in ("function_declaration", "arrow_function"):
                 name = self._get_identifier(node, source)
                 if name:
-                    nodes.append(NodeInfo(
-                        kind=NodeKind.FUNCTION,
-                        name=name,
-                        file_path=fp,
-                        range=SourceRange(_start_line(node), _end_line(node)),
-                        language=self.language,
-                    ))
+                    nodes.append(
+                        NodeInfo(
+                            kind=NodeKind.FUNCTION,
+                            name=name,
+                            file_path=fp,
+                            range=SourceRange(_start_line(node), _end_line(node)),
+                            language=self.language,
+                        )
+                    )
 
             for child in _children(node):
                 visit(child)
@@ -100,12 +102,14 @@ class JavaScriptParser(LanguageParser):
             if node.kind() == "call_expression":
                 target = self._get_call_target(node, source)
                 if target and enclosing_func:
-                    edges.append(EdgeInfo(
-                        kind=EdgeKind.CALLS,
-                        source_qualified=enclosing_func,
-                        target_qualified=target,
-                        file_path=fp,
-                    ))
+                    edges.append(
+                        EdgeInfo(
+                            kind=EdgeKind.CALLS,
+                            source_qualified=enclosing_func,
+                            target_qualified=target,
+                            file_path=fp,
+                        )
+                    )
 
             new_func = enclosing_func
             if node.kind() == "function_declaration":
@@ -126,12 +130,14 @@ class JavaScriptParser(LanguageParser):
             if node.kind() == "import_statement":
                 module = self._extract_import_module(node, source)
                 if module:
-                    edges.append(EdgeInfo(
-                        kind=EdgeKind.IMPORTS_FROM,
-                        source_qualified="module",
-                        target_qualified=module,
-                        file_path=fp,
-                    ))
+                    edges.append(
+                        EdgeInfo(
+                            kind=EdgeKind.IMPORTS_FROM,
+                            source_qualified="module",
+                            target_qualified=module,
+                            file_path=fp,
+                        )
+                    )
 
             for child in _children(node):
                 visit(child)
@@ -153,12 +159,14 @@ class JavaScriptParser(LanguageParser):
                         for heritage in _children(child):
                             if heritage.kind() == "identifier":
                                 base = _node_text(heritage, source)
-                                edges.append(EdgeInfo(
-                                    kind=EdgeKind.INHERITS,
-                                    source_qualified=class_name,
-                                    target_qualified=base,
-                                    file_path=fp,
-                                ))
+                                edges.append(
+                                    EdgeInfo(
+                                        kind=EdgeKind.INHERITS,
+                                        source_qualified=class_name,
+                                        target_qualified=base,
+                                        file_path=fp,
+                                    )
+                                )
 
             for child in _children(node):
                 visit(child)
@@ -175,13 +183,15 @@ class JavaScriptParser(LanguageParser):
             if node.kind() == "class_declaration":
                 name = self._get_identifier(node, source)
                 if name:
-                    nodes.append(NodeInfo(
-                        kind=NodeKind.CLASS,
-                        name=name,
-                        file_path=fp,
-                        range=SourceRange(_start_line(node), _end_line(node)),
-                        language=self.language,
-                    ))
+                    nodes.append(
+                        NodeInfo(
+                            kind=NodeKind.CLASS,
+                            name=name,
+                            file_path=fp,
+                            range=SourceRange(_start_line(node), _end_line(node)),
+                            language=self.language,
+                        )
+                    )
 
             for child in _children(node):
                 visit(child)
@@ -198,14 +208,16 @@ class JavaScriptParser(LanguageParser):
             if node.kind() == "function_declaration":
                 name = self._get_identifier(node, source)
                 if name and (name.startswith("test_") or name.startswith("it(")):
-                    nodes.append(NodeInfo(
-                        kind=NodeKind.TEST,
-                        name=name,
-                        file_path=fp,
-                        range=SourceRange(_start_line(node), _end_line(node)),
-                        language=self.language,
-                        is_test=True,
-                    ))
+                    nodes.append(
+                        NodeInfo(
+                            kind=NodeKind.TEST,
+                            name=name,
+                            file_path=fp,
+                            range=SourceRange(_start_line(node), _end_line(node)),
+                            language=self.language,
+                            is_test=True,
+                        )
+                    )
 
             for child in _children(node):
                 visit(child)
@@ -230,5 +242,5 @@ class JavaScriptParser(LanguageParser):
     def _extract_import_module(self, node, source: str) -> Optional[str]:
         for child in _children(node):
             if child.kind() == "string":
-                return source[child.start_byte() + 1:child.end_byte() - 1]
+                return source[child.start_byte() + 1 : child.end_byte() - 1]
         return None

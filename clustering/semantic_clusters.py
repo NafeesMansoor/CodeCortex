@@ -22,21 +22,21 @@ logger = logging.getLogger(__name__)
 class ClusterConfig:
     """Configuration for the semantic clustering pipeline."""
 
-    min_cluster_size: int = 5       # HDBSCAN: min members to form a cluster
-    min_samples: int = 3            # HDBSCAN: core point density
-    umap_n_components: int = 10     # Reduce to this many dims before clustering
+    min_cluster_size: int = 5  # HDBSCAN: min members to form a cluster
+    min_samples: int = 3  # HDBSCAN: core point density
+    umap_n_components: int = 10  # Reduce to this many dims before clustering
     umap_n_neighbors: int = 15
     metric: str = "cosine"
-    allow_noise: bool = True        # If False, assign noise points to nearest cluster
+    allow_noise: bool = True  # If False, assign noise points to nearest cluster
 
 
 @dataclass
 class Cluster:
     """A semantic cluster of code nodes."""
 
-    cluster_id: int                        # -1 = noise/outlier
+    cluster_id: int  # -1 = noise/outlier
     members: list[str] = field(default_factory=list)  # Qualified names
-    label: str = ""                        # Auto-generated or human label
+    label: str = ""  # Auto-generated or human label
     centroid: Optional[list[float]] = None
 
 
@@ -45,7 +45,7 @@ class ClusteringResult:
     """Output of a clustering run."""
 
     clusters: list[Cluster]
-    noise_members: list[str]              # Nodes in cluster_id == -1
+    noise_members: list[str]  # Nodes in cluster_id == -1
     algorithm: str = "hdbscan"
 
     def by_id(self, cluster_id: int) -> Optional[Cluster]:
@@ -107,13 +107,15 @@ class SemanticClusterer:
     def cluster_and_label(self, embedding_store) -> "ClusteringResult":
         """Cluster and auto-label all clusters in one call."""
         from clustering.cluster_labeler import ClusterLabeler
+
         result = self.cluster(embedding_store)
         ClusterLabeler().label_all(result.clusters)
         return result
 
-    def evaluate(self, result: "ClusteringResult", embedding_store) -> "ClusterQualityReport":
+    def evaluate(self, result: "ClusteringResult", embedding_store):
         """Compute quality metrics for a ClusteringResult."""
         from clustering.cluster_quality import ClusterQualityEvaluator
+
         return ClusterQualityEvaluator().evaluate(result, embedding_store)
 
     def _fit(self, vectors: list[list[float]]) -> tuple[list[int], str]:
@@ -133,9 +135,9 @@ class SemanticClusterer:
             return [0] * len(vectors), "trivial"
 
     def _fit_hdbscan(self, vectors: list[list[float]]) -> tuple[list[int], str]:
+        import hdbscan
         import numpy as np
         import umap
-        import hdbscan
 
         X = np.array(vectors, dtype="float32")
 
@@ -186,15 +188,15 @@ class SemanticClusterer:
         clusters = []
         for cid, members in cluster_map.items():
             member_vecs = [vectors[names.index(m)] for m in members]
-            centroid = (
-                np.mean(member_vecs, axis=0).tolist() if member_vecs else None
+            centroid = np.mean(member_vecs, axis=0).tolist() if member_vecs else None
+            clusters.append(
+                Cluster(
+                    cluster_id=cid,
+                    members=members,
+                    label=f"cluster_{cid}",
+                    centroid=centroid,
+                )
             )
-            clusters.append(Cluster(
-                cluster_id=cid,
-                members=members,
-                label=f"cluster_{cid}",
-                centroid=centroid,
-            ))
 
         clusters.sort(key=lambda c: c.cluster_id)
 

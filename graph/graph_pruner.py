@@ -15,27 +15,28 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
-from core.types import NodeKind, EdgeKind
+from core.types import EdgeKind, NodeKind
 from graph.graph_store import GraphStore
-from graph.schema import CPGNode, CPGEdge
 
 logger = logging.getLogger(__name__)
 
 # Nodes that carry architectural signal
-_SEMANTIC_KINDS: frozenset[NodeKind] = frozenset({
-    NodeKind.FUNCTION,
-    NodeKind.METHOD,
-    NodeKind.CLASS,
-    NodeKind.INTERFACE,
-    NodeKind.ENDPOINT,
-    NodeKind.TEST,
-    NodeKind.MODULE,
-    NodeKind.FILE,
-    NodeKind.ENUM,
-    NodeKind.STRUCT,
-    NodeKind.TYPE,
-    NodeKind.NAMESPACE,
-})
+_SEMANTIC_KINDS: frozenset[NodeKind] = frozenset(
+    {
+        NodeKind.FUNCTION,
+        NodeKind.METHOD,
+        NodeKind.CLASS,
+        NodeKind.INTERFACE,
+        NodeKind.ENDPOINT,
+        NodeKind.TEST,
+        NodeKind.MODULE,
+        NodeKind.FILE,
+        NodeKind.ENUM,
+        NodeKind.STRUCT,
+        NodeKind.TYPE,
+        NodeKind.NAMESPACE,
+    }
+)
 
 # Edge types with their semantic weight (used in ranking / traversal)
 EDGE_WEIGHTS: dict[EdgeKind, float] = {
