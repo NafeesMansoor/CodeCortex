@@ -25,8 +25,28 @@ import sqlite3
 from pathlib import Path
 from typing import Optional
 
+from core.db_schema import ensure_schema
 from core.types import NodeKind
 from indexing.indexing_provider import SymbolDefinition
+
+# Bump when the DDL below changes; stale caches are then rebuilt.
+SCHEMA_VERSION = 1
+
+_SCHEMA = """
+CREATE TABLE IF NOT EXISTS symbols (
+    qualified_name TEXT PRIMARY KEY,
+    kind           TEXT NOT NULL,
+    file_path      TEXT NOT NULL,
+    line           INTEGER NOT NULL DEFAULT 0,
+    col            INTEGER NOT NULL DEFAULT 0,
+    language       TEXT NOT NULL DEFAULT '',
+    module_path    TEXT NOT NULL DEFAULT '',
+    display_name   TEXT NOT NULL DEFAULT '',
+    mtime          REAL NOT NULL DEFAULT 0.0
+);
+CREATE INDEX IF NOT EXISTS idx_sym_display ON symbols(display_name);
+CREATE INDEX IF NOT EXISTS idx_sym_file    ON symbols(file_path);
+"""
 
 
 class SymbolCache:
@@ -38,22 +58,13 @@ class SymbolCache:
         self._create_schema()
 
     def _create_schema(self) -> None:
-        self._conn.executescript("""
-            CREATE TABLE IF NOT EXISTS symbols (
-                qualified_name TEXT PRIMARY KEY,
-                kind           TEXT NOT NULL,
-                file_path      TEXT NOT NULL,
-                line           INTEGER NOT NULL DEFAULT 0,
-                col            INTEGER NOT NULL DEFAULT 0,
-                language       TEXT NOT NULL DEFAULT '',
-                module_path    TEXT NOT NULL DEFAULT '',
-                display_name   TEXT NOT NULL DEFAULT '',
-                mtime          REAL NOT NULL DEFAULT 0.0
-            );
-            CREATE INDEX IF NOT EXISTS idx_sym_display ON symbols(display_name);
-            CREATE INDEX IF NOT EXISTS idx_sym_file    ON symbols(file_path);
-        """)
-        self._conn.commit()
+        ensure_schema(
+            self._conn,
+            store="symbol cache",
+            expected=SCHEMA_VERSION,
+            create_sql=_SCHEMA,
+            tables=("symbols",),
+        )
 
     # ------------------------------------------------------------------
     # Write

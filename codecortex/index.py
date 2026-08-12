@@ -146,6 +146,13 @@ def main(argv=None) -> int:
     from codecortex.cli import make_progress_printer
     from pipeline.context_builder import CodeCortexPipeline
 
+    # Refresh the update cache while indexing runs. Daemon thread, no result
+    # awaited — indexing must not depend on the release service being reachable.
+    if not args.quiet:
+        from codecortex.updater import check_in_background
+
+        check_in_background()
+
     t0 = time.perf_counter()
     pipeline = CodeCortexPipeline(pipeline_cfg)
     stats = pipeline.build(
@@ -176,6 +183,9 @@ def main(argv=None) -> int:
 
     if not args.quiet:
         print("\nIndexing complete.\n")
+        from codecortex.cli import notify_update_available
+
+        notify_update_available()
 
     return 0
 

@@ -104,6 +104,9 @@ def load(path: str | Path) -> CodeCortexConfig:
 
     raw = yaml.safe_load(path.read_text()) or {}
     section = raw.get("codecortex", raw)
+    if not isinstance(section, dict):
+        print(f"{path}: 'codecortex' section is not a mapping — using defaults", file=sys.stderr)
+        return CodeCortexConfig()
 
     mapping = {
         "bfs_depth": "bfs_depth",
@@ -124,6 +127,16 @@ def load(path: str | Path) -> CodeCortexConfig:
         "exclude_dirs": "exclude_dirs",
         "respect_gitignore": "respect_gitignore",
     }
+    # Report anything we do not recognise instead of dropping it silently: after
+    # an upgrade, a renamed or removed key would otherwise look like it was
+    # applied while the old default stayed in force.
+    unknown = sorted(set(section) - set(mapping))
+    if unknown:
+        print(
+            f"{path}: ignoring unrecognised setting(s): {', '.join(unknown)}",
+            file=sys.stderr,
+        )
+
     kwargs = {attr: section[key] for key, attr in mapping.items() if key in section}
     return CodeCortexConfig(**kwargs)
 

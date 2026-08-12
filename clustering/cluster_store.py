@@ -12,6 +12,10 @@ from contextlib import closing
 from typing import Optional
 
 from clustering.semantic_clusters import Cluster, ClusteringResult
+from core.db_schema import ensure_schema
+
+# Bump when the DDL below changes; stale caches are then rebuilt.
+SCHEMA_VERSION = 1
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS clusters (
@@ -44,8 +48,13 @@ class ClusterStore:
     def __init__(self, db_path: str = ":memory:"):
         self.db_path = db_path
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
-        self._conn.executescript(_SCHEMA)
-        self._conn.commit()
+        ensure_schema(
+            self._conn,
+            store="cluster store",
+            expected=SCHEMA_VERSION,
+            create_sql=_SCHEMA,
+            tables=("clusters", "cluster_members"),
+        )
 
     # ------------------------------------------------------------------
     # Write
