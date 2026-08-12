@@ -89,9 +89,9 @@ class TestTestsEdges:
 
 class TestCFGBuilder:
     def _tree_and_source(self, src: str):
-        import tree_sitter_language_pack as tslp
+        from core.parsers.grammars import get_parser
 
-        parser = tslp.get_parser("python")
+        parser = get_parser("python")
         # tree-sitter parses bytes; the offsets it reports index into them.
         tree = parser.parse(src.encode())
         return tree, src
@@ -136,9 +136,9 @@ class TestCFGBuilder:
 
 class TestDFGBuilder:
     def _tree_and_source(self, src: str):
-        import tree_sitter_language_pack as tslp
+        from core.parsers.grammars import get_parser
 
-        parser = tslp.get_parser("python")
+        parser = get_parser("python")
         # tree-sitter parses bytes; the offsets it reports index into them.
         tree = parser.parse(src.encode())
         return tree, src
@@ -172,9 +172,9 @@ class TestDFGBuilder:
 
 class TestEndpointDetector:
     def _tree(self, src: str, lang: str = "python"):
-        import tree_sitter_language_pack as tslp
+        from core.parsers.grammars import get_parser
 
-        parser = tslp.get_parser(lang)
+        parser = get_parser(lang)
         # tree-sitter parses bytes; the offsets it reports index into them.
         return parser.parse(src.encode()), src
 

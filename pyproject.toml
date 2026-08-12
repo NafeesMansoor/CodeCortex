@@ -27,9 +27,11 @@ dependencies = [
     # changed the parser API, and tree-sitter 0.26.0 segfaults on start_point.
     "tree-sitter>=0.25,<0.26",
     "tree-sitter-language-pack>=1.14,<2",
+    # Grammar wheels — parsing must not depend on a runtime download.
     "tree-sitter-python>=0.23,<1.0",
     "tree-sitter-javascript>=0.23,<1.0",
     "tree-sitter-typescript>=0.23,<1.0",
+    "tree-sitter-php>=0.23,<1.0",
     "networkx>=3.1",
     "faiss-cpu>=1.7",
     "numpy>=1.24",

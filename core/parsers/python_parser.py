@@ -41,10 +41,10 @@ class PythonParser(LanguageParser):
 
     def parse(self, source: str, file_path: str) -> ParseResult:
         try:
-            import tree_sitter_language_pack as tslp
+            from core.parsers.grammars import get_parser
 
             self._current_file_path = file_path
-            parser = tslp.get_parser("python")
+            parser = get_parser("python")
             # Wrap once so every byte-offset slice below is O(1) and correct,
             # and parse the very bytes those offsets index into.
             source = SourceText(source)

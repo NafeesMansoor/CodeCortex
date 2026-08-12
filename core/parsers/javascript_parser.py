@@ -39,10 +39,10 @@ class JavaScriptParser(LanguageParser):
     def parse(self, source: str, file_path: str) -> ParseResult:
         """Parse JavaScript source code."""
         try:
-            import tree_sitter_language_pack as tslp
+            from core.parsers.grammars import get_parser
 
             self._current_file_path = file_path
-            parser = tslp.get_parser("javascript")
+            parser = get_parser("javascript")
             # Wrap once so every byte-offset slice below is O(1) and correct,
             # and parse the very bytes those offsets index into.
             source = SourceText(source)
