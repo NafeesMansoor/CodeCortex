@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
+from core.source_text import node_text
 from core.types import EdgeKind
 from graph.schema import CPGEdge
 
@@ -27,8 +28,7 @@ def _children(node) -> list:
 
 
 def _text(node, source: str) -> str:
-    raw = source[node.start_byte() : node.end_byte()]
-    return raw.decode() if isinstance(raw, bytes) else raw
+    return node_text(node, source)
 
 
 # tree-sitter node types that introduce new control-flow scopes

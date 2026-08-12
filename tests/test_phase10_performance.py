@@ -257,3 +257,73 @@ class TestCodeCortexPipelineE2E:
         pipeline = CodeCortexPipeline.from_directory(tmp_path, config=config)
         f.write_text("def alpha(): pass\ndef beta(): pass\n")
         pipeline.reindex_file(str(f))  # should not raise
+
+
+class TestPipelineFileDiscovery:
+    """A virtualenv inside the repo must not be parsed (see docs/bug_reporting_1.md)."""
+
+    @staticmethod
+    def _config() -> PipelineConfig:
+        return PipelineConfig(
+            enable_cfg=False,
+            enable_dfg=False,
+            enable_endpoints=False,
+            embedding_backend="stub",
+            embedding_dimensions=8,
+            enable_clustering=False,
+        )
+
+    @staticmethod
+    def _make_repo(root):
+        (root / "app.py").write_text("def handler(): pass\n")
+        venv_pkg = root / ".venv" / "lib" / "site-packages" / "dep"
+        venv_pkg.mkdir(parents=True)
+        for i in range(20):
+            (venv_pkg / f"mod{i}.py").write_text(f"def dep_func{i}(): pass\n")
+
+    def test_skips_in_tree_virtualenv(self, tmp_path):
+        self._make_repo(tmp_path)
+        pipeline = CodeCortexPipeline(self._config())
+        stats = pipeline.build(tmp_path)
+
+        assert stats.files_parsed == 1
+        assert [p.name for p in pipeline._indexed_files] == ["app.py"]
+
+    def test_exclude_dirs_override_reaches_the_walker(self, tmp_path):
+        self._make_repo(tmp_path)
+        config = self._config()
+        config.exclude_dirs = []
+        pipeline = CodeCortexPipeline(config)
+        stats = pipeline.build(tmp_path)
+
+        assert stats.files_parsed == 21
+
+    def test_exclude_paths_applied_on_top_of_defaults(self, tmp_path):
+        self._make_repo(tmp_path)
+        (tmp_path / "docs").mkdir()
+        (tmp_path / "docs" / "sample.py").write_text("def sample(): pass\n")
+
+        pipeline = CodeCortexPipeline(self._config())
+        stats = pipeline.build(tmp_path, exclude_paths=["docs"])
+
+        assert stats.files_parsed == 1
+
+    def test_progress_callback_reports_every_file(self, tmp_path):
+        for i in range(3):
+            (tmp_path / f"m{i}.py").write_text(f"def f{i}(): pass\n")
+
+        seen = []
+        pipeline = CodeCortexPipeline(self._config())
+        pipeline.build(tmp_path, on_progress=lambda done, total, path: seen.append((done, total)))
+
+        assert seen == [(1, 3), (2, 3), (3, 3)]
+
+    def test_languages_filter_limits_the_walk(self, tmp_path):
+        (tmp_path / "app.py").write_text("def handler(): pass\n")
+        (tmp_path / "app.ts").write_text("function handler() {}\n")
+
+        pipeline = CodeCortexPipeline(self._config())
+        stats = pipeline.build(tmp_path, languages=["py"])
+
+        assert stats.files_parsed == 1
+        assert [p.name for p in pipeline._indexed_files] == ["app.py"]

@@ -9,6 +9,7 @@ import logging
 from typing import Optional
 
 from core.parser_framework import LanguageParser
+from core.source_text import SourceText, node_text
 from core.types import EdgeInfo, EdgeKind, NodeInfo, NodeKind, ParseResult, SourceRange
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ def _end_line(node) -> int:
 
 
 def _node_text(node, source: str) -> str:
-    return source[node.start_byte() : node.end_byte()]
+    return node_text(node, source)
 
 
 class PythonParser(LanguageParser):
@@ -44,6 +45,8 @@ class PythonParser(LanguageParser):
             self._current_file_path = file_path
             parser = tslp.get_parser("python")
             tree = parser.parse(source)
+            # Wrap once so every byte-offset slice below is O(1) and correct.
+            source = SourceText(source)
 
             nodes = self.extract_definitions(tree, source)
             nodes.extend(self.extract_types(tree, source))

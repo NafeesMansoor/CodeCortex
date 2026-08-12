@@ -87,7 +87,17 @@ def main(argv=None) -> int:
         nargs="+",
         metavar="PATH",
         default=None,
-        help="Paths to exclude from indexing (relative to target, e.g. vendor/ node_modules/)",
+        help="Extra paths to exclude, relative to target (e.g. storage/ docs/)",
+    )
+    parser.add_argument(
+        "--no-default-excludes",
+        action="store_true",
+        help="Walk every directory, including virtualenvs, node_modules and caches",
+    )
+    parser.add_argument(
+        "--no-gitignore",
+        action="store_true",
+        help="Do not honour the repository .gitignore when walking",
     )
     parser.add_argument("--quiet", action="store_true")
 
@@ -115,6 +125,10 @@ def main(argv=None) -> int:
         cc_config.on_demand_dfg = True
     if args.exclude:
         cc_config.exclude_paths = list(dict.fromkeys(cc_config.exclude_paths + args.exclude))
+    if args.no_default_excludes:
+        cc_config.exclude_dirs = []
+    if args.no_gitignore:
+        cc_config.respect_gitignore = False
 
     pipeline_cfg = cc_config.to_pipeline_config()
 
@@ -129,11 +143,16 @@ def main(argv=None) -> int:
         print(f"  Clustering : {'yes' if cc_config.enable_clustering else 'no'}")
         print()
 
+    from codecortex.cli import make_progress_printer
     from pipeline.context_builder import CodeCortexPipeline
 
     t0 = time.perf_counter()
     pipeline = CodeCortexPipeline(pipeline_cfg)
-    stats = pipeline.build(target, languages=args.languages)
+    stats = pipeline.build(
+        target,
+        languages=args.languages,
+        on_progress=make_progress_printer(args.quiet),
+    )
     elapsed = time.perf_counter() - t0
 
     if not args.quiet:

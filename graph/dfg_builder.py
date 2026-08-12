@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
+from core.source_text import node_text
 from core.types import EdgeKind, NodeKind
 from graph.schema import CPGEdge, CPGNode
 
@@ -111,7 +112,7 @@ class DFGBuilder:
                 if var_qname not in seen_vars:
                     seen_vars.add(var_qname)
                     # Only add variable node if it doesn't exist yet
-                    if self.store.get_node(var_qname) is None:
+                    if not self.store.has_node(var_qname):
                         nodes.append(
                             CPGNode(
                                 qualified_name=var_qname,
@@ -136,7 +137,9 @@ class DFGBuilder:
             if name and not name[0].isupper():
                 # Check if this name is a known local variable of this func
                 var_qname = f"{enclosing_func}.{name}"
-                if self.store.get_node(var_qname) is not None or var_qname in seen_vars:
+                # Set membership first: it short-circuits the SQLite round-trip,
+                # and this runs once per identifier token in every file.
+                if var_qname in seen_vars or self.store.has_node(var_qname):
                     edges.append(
                         CPGEdge(
                             kind=EdgeKind.READS,
@@ -181,5 +184,4 @@ def _lhs_name(node, source: str) -> Optional[str]:
 
 
 def _text(node, source: str) -> str:
-    raw = source[node.start_byte() : node.end_byte()]
-    return raw.decode() if isinstance(raw, bytes) else raw
+    return node_text(node, source)

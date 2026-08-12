@@ -18,6 +18,7 @@ import logging
 from typing import Optional
 
 from core.parser_framework import LanguageParser
+from core.source_text import SourceText, node_text
 from core.types import EdgeInfo, EdgeKind, NodeInfo, NodeKind, ParseResult, SourceRange
 
 logger = logging.getLogger(__name__)
@@ -28,8 +29,7 @@ def _children(node) -> list:
 
 
 def _extract_text(node, source: str) -> str:
-    text = source[node.start_byte() : node.end_byte()]
-    return text.strip()
+    return node_text(node, source).strip()
 
 
 def _start_line(node) -> int:
@@ -54,6 +54,8 @@ class PHPParser(LanguageParser):
             parser = tslp.get_parser("php")
             tree = parser.parse(source)
             root = tree.root_node()
+            # Wrap once so every byte-offset slice below is O(1) and correct.
+            source = SourceText(source)
 
             nodes = self.extract_definitions(root, source)
             nodes.extend(self.extract_types(root, source))

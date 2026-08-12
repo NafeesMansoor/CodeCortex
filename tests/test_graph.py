@@ -89,6 +89,44 @@ class TestGraphStore:
         assert len(a_nodes) == 1
         assert a_nodes[0].qualified_name == "a.foo"
 
+    def test_has_node(self):
+        store = _make_store()
+        store.add_node(_sample_node("a.foo"))
+        assert store.has_node("a.foo") is True
+        assert store.has_node("a.missing") is False
+
+    def test_bulk_insert_matches_per_row_insert(self):
+        nodes = [_sample_node(f"mod.func{i}") for i in range(50)]
+        edges = [_sample_edge(f"mod.func{i}", f"mod.func{i + 1}") for i in range(49)]
+
+        batched = _make_store()
+        batched.add_nodes(nodes)
+        batched.add_edges(edges)
+
+        one_by_one = _make_store()
+        for node in nodes:
+            one_by_one.add_node(node)
+        for edge in edges:
+            one_by_one.add_edge(edge)
+
+        assert batched.node_count() == one_by_one.node_count() == 50
+        assert batched.edge_count() == one_by_one.edge_count() == 49
+        assert [n.qualified_name for n in batched.all_nodes()] == [
+            n.qualified_name for n in one_by_one.all_nodes()
+        ]
+
+    def test_bulk_insert_of_empty_list(self):
+        store = _make_store()
+        store.add_nodes([])
+        store.add_edges([])
+        assert store.node_count() == 0
+        assert store.edge_count() == 0
+
+    def test_bulk_insert_replaces_duplicates(self):
+        store = _make_store()
+        store.add_nodes([_sample_node("mod.func"), _sample_node("mod.func")])
+        assert store.node_count() == 1
+
     def test_replace_node_on_duplicate(self):
         store = _make_store()
         n1 = _sample_node("mod.func")

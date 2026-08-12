@@ -354,13 +354,16 @@ codecortex index . --save-snapshot .codecortex/graph.json
 # Limit languages
 codecortex index . --languages py ts
 
-# Exclude third-party directories (e.g. Laravel / Node projects)
-codecortex index . --languages php --exclude vendor/ node_modules/ storage/
+# Exclude extra project paths, on top of the built-in defaults
+codecortex index . --languages php --exclude storage/ bootstrap/cache/
 ```
 
-> **Laravel / PHP projects:** always target `./app` or pass `--exclude vendor`
-> to avoid indexing 8000+ Composer package files. The default `codecortex.yaml`
-> ships with `vendor`, `node_modules`, `storage`, and `bootstrap/cache` pre-excluded.
+> **Dependency directories are skipped automatically.** Virtualenvs (`venv/`,
+> `.venv/`), `node_modules/`, `vendor/`, `site-packages/`, `__pycache__/`,
+> build output and VCS metadata are pruned before the walker descends into
+> them, and the repository `.gitignore` is honoured. Pass
+> `--no-default-excludes` / `--no-gitignore` to opt out, or set `exclude_dirs`
+> in `codecortex.yaml` to replace the built-in list.
 
 ### Query
 

@@ -105,11 +105,11 @@ codecortex index . --save-snapshot .codecortex/graph.json
 # Limit to specific languages (py / js / ts / php)
 codecortex index . --languages py ts
 
-# Laravel / PHP: index only app/ to avoid 8000+ vendor files
-codecortex index ./app --languages php --save-snapshot .codecortex/graph.json
+# Exclude extra project paths on top of the built-in defaults
+codecortex index . --languages php --exclude storage bootstrap
 
-# Exclude vendor/node_modules explicitly (alternative to targeting app/)
-codecortex index . --languages php --exclude vendor node_modules storage bootstrap
+# Index everything, including virtualenvs and dependencies (rarely wanted)
+codecortex index . --no-default-excludes --no-gitignore
 
 # Full recommended build for medium projects
 codecortex index . \
@@ -123,8 +123,11 @@ codecortex index . \
 CODECORTEX_LOG_LEVEL=DEBUG codecortex index .
 ```
 
-> **Tip:** Add `exclude_paths` to `codecortex.yaml` so you never need to pass
-> `--exclude` on every run (see Section 6).
+> **Note:** Virtualenvs (`venv/`, `.venv/`), `node_modules/`, `vendor/`,
+> `__pycache__/`, build output and VCS metadata are skipped automatically, and
+> the repository `.gitignore` is honoured. Use `--exclude` only for extra
+> project paths, or add `exclude_paths` to `codecortex.yaml` so you never need
+> to pass it on every run (see Section 6).
 
 ---
 
@@ -209,14 +212,17 @@ codecortex:
   # Centrality
   centrality_ranking: true
 
-  # Exclude third-party and generated directories from indexing.
-  # Prevents vendor/ and node_modules/ from polluting the graph.
+  # Honour the repository .gitignore (default: true)
+  respect_gitignore: true
+
+  # Extra paths to skip, on top of the built-in directory exclusions
+  # (virtualenvs, node_modules, vendor, caches, build output, VCS metadata).
   exclude_paths:
-    - vendor
-    - node_modules
     - storage
     - bootstrap/cache
-    - .git
+
+  # Optional: replace the built-in directory list entirely
+  # exclude_dirs: [.venv, node_modules, vendor]
 ```
 
 ### Lightweight mode (fastest build, structural only)
@@ -403,7 +409,7 @@ Snapshot: `.codecortex/graph.json` — rebuild with:
 | Symptom | Fix |
 |---------|-----|
 | Empty graph / no nodes in visualizer | Check files exist for supported languages (`.py .js .ts .php`). Run with `CODECORTEX_LOG_LEVEL=DEBUG`. |
-| PHP: 8000+ files, 0 nodes (Laravel) | Indexer is walking `vendor/`. Run `codecortex index ./app --languages php` or set `exclude_paths: [vendor]` in `codecortex.yaml`. |
+| Far more files indexed than the project has | A directory the defaults don't cover is being walked. Add it via `--exclude`, or check you did not pass `--no-default-excludes`. |
 | "Clustering skipped" message | Expected when `scikit-learn`/`hdbscan` are not installed. Install with `pip install scikit-learn hdbscan umap-learn` to enable. |
 | 0 clusters produced | HDBSCAN needs real embeddings. Set `embedding_backend: local` and `pip install sentence-transformers`. |
 | Slow CPG build (>10s for 60 files) | Enable `use_graph_pruning: true`, `on_demand_cfg: true`, `on_demand_dfg: true` in `codecortex.yaml`. |

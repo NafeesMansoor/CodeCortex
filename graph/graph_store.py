@@ -48,6 +48,40 @@ CREATE INDEX IF NOT EXISTS idx_edges_source ON edges (source);
 CREATE INDEX IF NOT EXISTS idx_edges_target ON edges (target);
 """
 
+_NODE_INSERT = """INSERT OR REPLACE INTO nodes
+    (qualified_name, kind, name, file_path, language,
+     range_start, range_end, parent_qualified, is_test, extra)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+
+_EDGE_INSERT = """INSERT INTO edges (kind, source, target, file_path, confidence, extra)
+    VALUES (?, ?, ?, ?, ?, ?)"""
+
+
+def _node_params(node: CPGNode) -> tuple:
+    return (
+        node.qualified_name,
+        node.kind.value,
+        node.name,
+        node.file_path,
+        node.language,
+        node.range.start_line if node.range else 0,
+        node.range.end_line if node.range else 0,
+        node.parent_qualified,
+        int(node.is_test or False),
+        json.dumps(node.extra),
+    )
+
+
+def _edge_params(edge: CPGEdge) -> tuple:
+    return (
+        edge.kind.value,
+        edge.source,
+        edge.target,
+        edge.file_path,
+        edge.confidence,
+        json.dumps(edge.extra),
+    )
+
 
 class GraphStore:
     """SQLite-backed graph store with in-memory fallback.
@@ -89,31 +123,15 @@ class GraphStore:
     # --- Node operations ---
 
     def add_node(self, node: CPGNode) -> None:
-        range_start = node.range.start_line if node.range else 0
-        range_end = node.range.end_line if node.range else 0
         with self._tx() as cur:
-            cur.execute(
-                """INSERT OR REPLACE INTO nodes
-                   (qualified_name, kind, name, file_path, language,
-                    range_start, range_end, parent_qualified, is_test, extra)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    node.qualified_name,
-                    node.kind.value,
-                    node.name,
-                    node.file_path,
-                    node.language,
-                    range_start,
-                    range_end,
-                    node.parent_qualified,
-                    int(node.is_test or False),
-                    json.dumps(node.extra),
-                ),
-            )
+            cur.execute(_NODE_INSERT, _node_params(node))
 
     def add_nodes(self, nodes: list[CPGNode]) -> None:
-        for node in nodes:
-            self.add_node(node)
+        """Insert nodes in a single transaction — one commit, not one per row."""
+        if not nodes:
+            return
+        with self._tx() as cur:
+            cur.executemany(_NODE_INSERT, [_node_params(n) for n in nodes])
 
     def get_node(self, qualified_name: str) -> Optional[CPGNode]:
         row = self._conn.execute(
@@ -122,6 +140,15 @@ class GraphStore:
         if row is None:
             return None
         return self._row_to_node(row)
+
+    def has_node(self, qualified_name: str) -> bool:
+        """Existence check that skips row hydration."""
+        return (
+            self._conn.execute(
+                "SELECT 1 FROM nodes WHERE qualified_name = ? LIMIT 1", (qualified_name,)
+            ).fetchone()
+            is not None
+        )
 
     def get_nodes_by_file(self, file_path: str) -> list[CPGNode]:
         rows = self._conn.execute(
@@ -144,22 +171,14 @@ class GraphStore:
 
     def add_edge(self, edge: CPGEdge) -> None:
         with self._tx() as cur:
-            cur.execute(
-                """INSERT INTO edges (kind, source, target, file_path, confidence, extra)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
-                (
-                    edge.kind.value,
-                    edge.source,
-                    edge.target,
-                    edge.file_path,
-                    edge.confidence,
-                    json.dumps(edge.extra),
-                ),
-            )
+            cur.execute(_EDGE_INSERT, _edge_params(edge))
 
     def add_edges(self, edges: list[CPGEdge]) -> None:
-        for edge in edges:
-            self.add_edge(edge)
+        """Insert edges in a single transaction — one commit, not one per row."""
+        if not edges:
+            return
+        with self._tx() as cur:
+            cur.executemany(_EDGE_INSERT, [_edge_params(e) for e in edges])
 
     def get_outgoing_edges(self, qualified_name: str) -> list[CPGEdge]:
         rows = self._conn.execute(

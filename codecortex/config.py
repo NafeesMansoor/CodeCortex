@@ -16,11 +16,18 @@ Expected file layout (codecortex.yaml):
       min_cluster_size: 5
       retrieval_top_k: 20
       token_budget: 4000
-      exclude_paths:
-        - vendor/
-        - node_modules/
+      respect_gitignore: true
+      exclude_paths:            # extra paths, relative to the index root
         - storage/
         - bootstrap/cache/
+      exclude_dirs:             # overrides the built-in defaults entirely
+        - .venv
+        - node_modules
+        - vendor
+
+Virtualenvs, node_modules, vendor, caches and build output are pruned by
+default (see core.file_walker.DEFAULT_EXCLUDED_DIRS); exclude_dirs is only
+needed to replace that list.
 """
 
 from __future__ import annotations
@@ -55,6 +62,8 @@ class CodeCortexConfig:
     min_semantic_score: float = 0.0
 
     exclude_paths: list[str] = field(default_factory=list)
+    exclude_dirs: Optional[list[str]] = None  # None = built-in defaults
+    respect_gitignore: bool = True
 
     def to_pipeline_config(self):
         from pipeline.context_builder import PipelineConfig
@@ -74,6 +83,8 @@ class CodeCortexConfig:
             retrieval_token_budget=self.token_budget,
             retrieval_min_semantic=self.min_semantic_score,
             exclude_paths=self.exclude_paths,
+            exclude_dirs=self.exclude_dirs,
+            respect_gitignore=self.respect_gitignore,
         )
 
 
@@ -110,6 +121,8 @@ def load(path: str | Path) -> CodeCortexConfig:
         "token_budget": "token_budget",
         "min_semantic_score": "min_semantic_score",
         "exclude_paths": "exclude_paths",
+        "exclude_dirs": "exclude_dirs",
+        "respect_gitignore": "respect_gitignore",
     }
     kwargs = {attr: section[key] for key, attr in mapping.items() if key in section}
     return CodeCortexConfig(**kwargs)

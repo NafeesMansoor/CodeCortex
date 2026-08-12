@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "codecortex"
-version = "1.0.1"
+version = "1.1.0"
 description = "Adaptive semantic intelligence engine for large-scale code understanding"
 readme = "README.md"
 license = { text = "MIT" }

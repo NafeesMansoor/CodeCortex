@@ -26,12 +26,15 @@ codecortex:
   token_budget: 4000
   min_semantic_score: 0.0
 
-  # Paths to exclude from indexing.
-  # Prevents vendor/, node_modules/, and generated directories from
-  # polluting the graph with third-party code.
+  # Honour the repository .gitignore while walking
+  respect_gitignore: true
+
+  # Extra paths to exclude, on top of the built-in directory exclusions
+  # (virtualenvs, node_modules, vendor, site-packages, caches, build output,
+  # VCS metadata — see core.file_walker.DEFAULT_EXCLUDED_DIRS).
   exclude_paths:
-    - vendor
-    - node_modules
     - storage
     - bootstrap/cache
-    - .git
+
+  # Uncomment to replace the built-in directory list entirely:
+  # exclude_dirs: [.venv, node_modules, vendor]

@@ -94,6 +94,23 @@ def main(argv=None) -> int:
         help="Limit to: py js ts php",
     )
     parser.add_argument(
+        "--exclude",
+        nargs="+",
+        metavar="PATH",
+        default=None,
+        help="Extra paths to exclude, relative to target (e.g. storage/ docs/)",
+    )
+    parser.add_argument(
+        "--no-default-excludes",
+        action="store_true",
+        help="Walk every directory, including virtualenvs, node_modules and caches",
+    )
+    parser.add_argument(
+        "--no-gitignore",
+        action="store_true",
+        help="Do not honour the repository .gitignore when walking",
+    )
+    parser.add_argument(
         "--json",
         action="store_true",
         help="Output results as JSON instead of plain text",
@@ -124,15 +141,26 @@ def main(argv=None) -> int:
     if args.mode == "hybrid" or args.enable_on_demand_dfg:
         cc_config.on_demand_dfg = True
 
+    if args.exclude:
+        cc_config.exclude_paths = list(dict.fromkeys(cc_config.exclude_paths + args.exclude))
+    if args.no_default_excludes:
+        cc_config.exclude_dirs = []
+    if args.no_gitignore:
+        cc_config.respect_gitignore = False
+
     pipeline_cfg = cc_config.to_pipeline_config()
 
     if not args.quiet:
         print(f"\nBuilding index for {target} …", file=sys.stderr)
 
+    from codecortex.cli import make_progress_printer
     from pipeline.context_builder import CodeCortexPipeline
 
     pipeline = CodeCortexPipeline.from_directory(
-        target, config=pipeline_cfg, languages=args.languages
+        target,
+        config=pipeline_cfg,
+        languages=args.languages,
+        on_progress=make_progress_printer(args.quiet),
     )
 
     if not args.quiet:

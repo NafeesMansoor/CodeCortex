@@ -91,14 +91,15 @@ class IndexingProvider(ABC):
         Default: iterate and merge per-file results. Providers that have a
         project-wide index command (scip-python, pyright) should override.
         """
+        from core.file_walker import walk_source_files
+
         extensions = _LANGUAGE_EXTENSIONS.get(language, [])
         combined = IndexResult(language=language, source=self.name)
-        for ext in extensions:
-            for path in root.rglob(f"*{ext}"):
-                result = self.index_file(path, root)
-                combined.definitions.extend(result.definitions)
-                combined.occurrences.extend(result.occurrences)
-                combined.errors.extend(result.errors)
+        for path in walk_source_files(root, extensions):
+            result = self.index_file(path, root)
+            combined.definitions.extend(result.definitions)
+            combined.occurrences.extend(result.occurrences)
+            combined.errors.extend(result.errors)
         return combined
 
 

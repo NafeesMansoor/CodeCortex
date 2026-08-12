@@ -46,9 +46,11 @@ class ParallelIndexer:
         language: str = "python",
     ) -> list[ParseResult]:
         """Parse all files of the given language under root."""
+        from core.file_walker import walk_source_files
+
         root = Path(root)
         ext = _EXT_MAP.get(language, language)
-        files = sorted(root.rglob(f"*.{ext}"))
+        files = list(walk_source_files(root, [ext]))
         if not files:
             return []
 

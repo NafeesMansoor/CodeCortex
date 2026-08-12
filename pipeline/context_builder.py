@@ -21,9 +21,12 @@ import logging
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
+
+# Reports (files_done, files_total, current_file) as parsing proceeds.
+ProgressCallback = Callable[[int, int, Path], None]
 
 
 @dataclass
@@ -64,6 +67,14 @@ class PipelineConfig:
 
     # Paths to exclude during file walking (relative to index root, e.g. "vendor/")
     exclude_paths: list[str] = field(default_factory=list)
+
+    # Directory names pruned at any depth. None = core.file_walker defaults
+    # (virtualenvs, node_modules, vendor, caches, build output, VCS metadata).
+    # Set to [] to walk everything.
+    exclude_dirs: Optional[list[str]] = None
+
+    # Honour the repository-root .gitignore when walking
+    respect_gitignore: bool = True
 
 
 @dataclass
@@ -116,10 +127,16 @@ class CodeCortexPipeline:
         config: Optional[PipelineConfig] = None,
         languages: Optional[list[str]] = None,
         exclude_paths: Optional[list[str]] = None,
+        on_progress: Optional[ProgressCallback] = None,
     ) -> "CodeCortexPipeline":
         """Build the full pipeline from a source directory."""
         pipeline = cls(config)
-        pipeline.build(Path(path), languages=languages, exclude_paths=exclude_paths)
+        pipeline.build(
+            Path(path),
+            languages=languages,
+            exclude_paths=exclude_paths,
+            on_progress=on_progress,
+        )
         return pipeline
 
     # ------------------------------------------------------------------
@@ -131,8 +148,18 @@ class CodeCortexPipeline:
         root: Path,
         languages: Optional[list[str]] = None,
         exclude_paths: Optional[list[str]] = None,
+        on_progress: Optional[ProgressCallback] = None,
     ) -> PipelineStats:
-        """Run all phases over source files under root."""
+        """Run all phases over source files under root.
+
+        Args:
+            root: Repository root to index.
+            languages: Restrict to these extensions, e.g. ``["py", "ts"]``.
+            exclude_paths: Extra paths to skip, relative to root. Applied on top
+                of the default directory exclusions (see PipelineConfig).
+            on_progress: Called as ``(files_done, files_total, path)`` while
+                parsing, so long indexes are distinguishable from a hang.
+        """
         stats = PipelineStats()
         t_start = time.perf_counter()
 
@@ -140,7 +167,7 @@ class CodeCortexPipeline:
 
         # Phase 1+2+3: Parse → CPG (CFG/DFG deferred when on_demand is set)
         stats.files_parsed, stats.parse_errors, self._store = self._build_cpg(
-            root, languages, effective_excludes
+            root, languages, effective_excludes, on_progress
         )
 
         # Graph pruning — compact semantic graph
@@ -186,8 +213,13 @@ class CodeCortexPipeline:
         return stats
 
     def _build_cpg(
-        self, root: Path, languages: Optional[list[str]], exclude_paths: Optional[list[str]] = None
+        self,
+        root: Path,
+        languages: Optional[list[str]],
+        exclude_paths: Optional[list[str]] = None,
+        on_progress: Optional[ProgressCallback] = None,
     ) -> tuple[int, int, object]:
+        from core.file_walker import walk_source_files
         from core.parsers.python_parser import PythonParser
         from graph.cpg_builder import CPGBuilder
         from graph.graph_store import GraphStore
@@ -195,7 +227,6 @@ class CodeCortexPipeline:
         store = GraphStore(":memory:")
         cfg = self.config
 
-        # Normalise exclude list: strip trailing slashes for consistent matching
         # Tier 1 build: skip CFG/DFG when on-demand expansion is requested
         effective_cfg = cfg.enable_cfg and not cfg.on_demand_cfg
         effective_dfg = cfg.enable_dfg and not cfg.on_demand_dfg
@@ -218,28 +249,44 @@ class CodeCortexPipeline:
         except Exception:
             pass
 
-        excluded_roots = [root / p.rstrip("/") for p in (exclude_paths or [])]
+        if languages:
+            parsers = {ext: p for ext, p in parsers.items() if ext in languages}
+        if not parsers:
+            return 0, 0, store
+
+        # One pruned walk for all extensions. Directories are skipped before
+        # descending, so an in-tree virtualenv costs nothing rather than
+        # dominating the run.
+        discovered = list(
+            walk_source_files(
+                root,
+                extensions=parsers.keys(),
+                exclude_dirs=cfg.exclude_dirs,
+                exclude_paths=exclude_paths,
+                respect_gitignore=cfg.respect_gitignore,
+            )
+        )
+        total = len(discovered)
+        logger.info("Discovered %d source files under %s", total, root)
 
         files = 0
         errors = 0
         self._indexed_files = []
-        for ext, parser in parsers.items():
-            if languages and ext not in languages:
-                continue
-            for file_path in root.rglob(f"*.{ext}"):
-                if any(file_path.is_relative_to(exc) for exc in excluded_roots):
-                    continue
-                try:
-                    source = file_path.read_text(encoding="utf-8", errors="replace")
-                    result = parser.parse(source, str(file_path))
-                    builder.ingest(result)
-                    self._indexed_files.append(file_path)
-                    files += 1
-                    if result.errors:
-                        errors += 1
-                except Exception as e:
-                    logger.debug("Error parsing %s: %s", file_path, e)
+        for index, file_path in enumerate(discovered, start=1):
+            parser = parsers[file_path.suffix.lstrip(".")]
+            try:
+                source = file_path.read_text(encoding="utf-8", errors="replace")
+                result = parser.parse(source, str(file_path))
+                builder.ingest(result)
+                self._indexed_files.append(file_path)
+                files += 1
+                if result.errors:
                     errors += 1
+            except Exception as e:
+                logger.debug("Error parsing %s: %s", file_path, e)
+                errors += 1
+            if on_progress is not None:
+                on_progress(index, total, file_path)
 
         return files, errors, store
 

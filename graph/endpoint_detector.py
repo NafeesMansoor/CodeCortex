@@ -25,6 +25,7 @@ import re
 from pathlib import Path
 from typing import Optional
 
+from core.source_text import node_text
 from core.types import NodeKind, SourceRange
 from graph.schema import CPGNode
 
@@ -83,7 +84,6 @@ class EndpointDetector:
         self, tree, source: str, file_path: str, func_name_map: dict[str, str]
     ) -> list[CPGNode]:
         endpoints: list[CPGNode] = []
-        source.splitlines() if isinstance(source, str) else source.decode().splitlines()
 
         # Walk tree-sitter decorated functions
         self._walk_python(
@@ -299,5 +299,4 @@ def _identifier(node, source: str) -> str:
 
 
 def _text(node, source: str) -> str:
-    raw = source[node.start_byte() : node.end_byte()]
-    return raw.decode() if isinstance(raw, bytes) else raw
+    return node_text(node, source)

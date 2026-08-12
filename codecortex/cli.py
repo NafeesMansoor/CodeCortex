@@ -11,9 +11,40 @@ Aliases: cx index / cx query / cx visualize
 from __future__ import annotations
 
 import sys
+from pathlib import Path
+from typing import Callable, Optional
+
+
+def make_progress_printer(
+    quiet: bool, label: str = "Parsing", every: int = 25
+) -> Optional[Callable[[int, int, Path], None]]:
+    """Return a progress callback for pipeline.build(), or None when quiet.
+
+    Indexing a large tree used to be silent, making a slow run indistinguishable
+    from a hang. Writes to stderr so piped stdout stays clean.
+    """
+    if quiet:
+        return None
+
+    stream = sys.stderr
+    interactive = stream.isatty()
+
+    def report(done: int, total: int, path: Path) -> None:
+        if done != total and done % every:
+            return
+        if interactive:
+            stream.write(f"\r  {label} : {done}/{total} files")
+            if done == total:
+                stream.write("\n")
+        else:
+            stream.write(f"  {label} : {done}/{total} files\n")
+        stream.flush()
+
+    return report
+
 
 _USAGE = """\
-CodeCortex v1.0.1 — Adaptive Semantic Intelligence Engine
+CodeCortex v1.1.0 — Adaptive Semantic Intelligence Engine
 
 Usage:
   codecortex index     <dir> [options]       Build semantic graph index
@@ -43,7 +74,7 @@ def main(argv=None) -> int:
         return 0
 
     if args[0] in ("-v", "--version"):
-        print("CodeCortex 1.0.1")
+        print("CodeCortex 1.1.0")
         return 0
 
     subcommand = args[0]

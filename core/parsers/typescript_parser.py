@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Optional
 
 from core.parser_framework import LanguageParser
+from core.source_text import SourceText, byte_slice, node_text
 from core.types import EdgeInfo, EdgeKind, NodeInfo, NodeKind, ParseResult, SourceRange
 
 
@@ -22,7 +23,7 @@ def _end_line(node) -> int:
 
 
 def _node_text(node, source: str) -> str:
-    return source[node.start_byte() : node.end_byte()]
+    return node_text(node, source)
 
 
 class TypeScriptParser(LanguageParser):
@@ -39,6 +40,8 @@ class TypeScriptParser(LanguageParser):
             self._current_file_path = file_path
             parser = tslp.get_parser("typescript")
             tree = parser.parse(source)
+            # Wrap once so every byte-offset slice below is O(1) and correct.
+            source = SourceText(source)
 
             nodes = self.extract_definitions(tree, source)
             nodes.extend(self.extract_types(tree, source))
@@ -245,5 +248,6 @@ class TypeScriptParser(LanguageParser):
     def _extract_import_module(self, node, source: str) -> Optional[str]:
         for child in _children(node):
             if child.kind() == "string":
-                return source[child.start_byte() + 1 : child.end_byte() - 1]
+                # Trim the surrounding quotes, which are one byte each.
+                return byte_slice(source, child.start_byte() + 1, child.end_byte() - 1)
         return None

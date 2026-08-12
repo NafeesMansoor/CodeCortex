@@ -82,8 +82,10 @@ class JediProvider(IndexingProvider):
 
     def index_project(self, root: Path, language: str) -> IndexResult:
         """Index a whole Python project in one pass using jedi.Script per file."""
+        from core.file_walker import walk_source_files
+
         combined = IndexResult(language="python", source=self.name)
-        py_files = list(root.rglob("*.py"))
+        py_files = list(walk_source_files(root, ["py"]))
         for f in py_files:
             r = self.index_file(f, root)
             combined.definitions.extend(r.definitions)
