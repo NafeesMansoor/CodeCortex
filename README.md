@@ -436,6 +436,7 @@ pipeline.reindex_file("/path/to/repo/auth/service.py")
 
 # Export for visualization
 from visualization import export_pipeline
+
 graph_json = export_pipeline(pipeline, project_name="my-repo")
 ```
 
@@ -647,13 +648,13 @@ Create a virtualenv first: `python3 -m venv .venv && source .venv/bin/activate`,
 from core.parser_framework import LanguageParser
 from core.types import ParseResult
 
+
 class RustParser(LanguageParser):
     @property
     def language(self) -> str:
         return "rust"
 
-    def parse(self, source: str, file_path: str) -> ParseResult:
-        ...
+    def parse(self, source: str, file_path: str) -> ParseResult: ...
 ```
 
 ### Add an Embedding Provider
@@ -662,9 +663,9 @@ class RustParser(LanguageParser):
 from embeddings.provider_factory import EmbeddingProvider
 import numpy as np
 
+
 class MyProvider(EmbeddingProvider):
-    def embed(self, texts: list[str]) -> np.ndarray:
-        ...
+    def embed(self, texts: list[str]) -> np.ndarray: ...
 ```
 
 ### Export Graph Programmatically

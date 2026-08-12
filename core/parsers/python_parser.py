@@ -15,17 +15,18 @@ from core.types import EdgeInfo, EdgeKind, NodeInfo, NodeKind, ParseResult, Sour
 logger = logging.getLogger(__name__)
 
 
-# tree-sitter-language-pack new callable API helpers
+# Node accessors are properties on the upstream tree_sitter API used by
+# tree-sitter-language-pack >= 1.14.
 def _children(node) -> list:
-    return [node.child(i) for i in range(node.child_count())]
+    return [node.child(i) for i in range(node.child_count)]
 
 
 def _start_line(node) -> int:
-    return node.start_position().row + 1
+    return node.start_point.row + 1
 
 
 def _end_line(node) -> int:
-    return node.end_position().row + 1
+    return node.end_point.row + 1
 
 
 def _node_text(node, source: str) -> str:
@@ -44,9 +45,10 @@ class PythonParser(LanguageParser):
 
             self._current_file_path = file_path
             parser = tslp.get_parser("python")
-            tree = parser.parse(source)
-            # Wrap once so every byte-offset slice below is O(1) and correct.
+            # Wrap once so every byte-offset slice below is O(1) and correct,
+            # and parse the very bytes those offsets index into.
             source = SourceText(source)
+            tree = parser.parse(source.as_bytes())
 
             nodes = self.extract_definitions(tree, source)
             nodes.extend(self.extract_types(tree, source))
@@ -83,7 +85,7 @@ class PythonParser(LanguageParser):
         fp = getattr(self, "_current_file_path", "")
 
         def visit(node, parent_name=None, inside_class=False):
-            if node.kind() == "function_definition":
+            if node.type == "function_definition":
                 name = self._get_identifier(node, source)
                 if name:
                     params = self._extract_params(node, source)
@@ -112,7 +114,7 @@ class PythonParser(LanguageParser):
                         visit(child, parent_name=name, inside_class=False)
                     return
 
-            if node.kind() == "class_definition":
+            if node.type == "class_definition":
                 class_name = self._get_identifier(node, source)
                 for child in _children(node):
                     visit(child, parent_name=class_name, inside_class=True)
@@ -121,7 +123,7 @@ class PythonParser(LanguageParser):
             for child in _children(node):
                 visit(child, parent_name=parent_name, inside_class=inside_class)
 
-        visit(tree.root_node())
+        visit(tree.root_node)
         return nodes
 
     def extract_calls(self, tree, source: str) -> list[EdgeInfo]:
@@ -130,7 +132,7 @@ class PythonParser(LanguageParser):
         fp = getattr(self, "_current_file_path", "")
 
         def visit(node, enclosing_func=None):
-            if node.kind() == "call":
+            if node.type == "call":
                 target = self._get_call_target(node, source)
                 if target and enclosing_func:
                     edges.append(
@@ -144,13 +146,13 @@ class PythonParser(LanguageParser):
                     )
 
             new_func = enclosing_func
-            if node.kind() == "function_definition":
+            if node.type == "function_definition":
                 new_func = self._get_identifier(node, source)
 
             for child in _children(node):
                 visit(child, new_func)
 
-        visit(tree.root_node())
+        visit(tree.root_node)
         return edges
 
     def extract_imports(self, tree, source: str) -> list[EdgeInfo]:
@@ -159,7 +161,7 @@ class PythonParser(LanguageParser):
         fp = getattr(self, "_current_file_path", "")
 
         def visit(node):
-            if node.kind() == "import_statement":
+            if node.type == "import_statement":
                 module = self._extract_import_module(node, source)
                 if module:
                     edges.append(
@@ -170,7 +172,7 @@ class PythonParser(LanguageParser):
                             file_path=fp,
                         )
                     )
-            elif node.kind() == "import_from_statement":
+            elif node.type == "import_from_statement":
                 module = self._extract_from_import(node, source)
                 if module:
                     edges.append(
@@ -185,7 +187,7 @@ class PythonParser(LanguageParser):
             for child in _children(node):
                 visit(child)
 
-        visit(tree.root_node())
+        visit(tree.root_node)
         return edges
 
     def extract_inheritance(self, tree, source: str) -> list[EdgeInfo]:
@@ -194,11 +196,11 @@ class PythonParser(LanguageParser):
         fp = getattr(self, "_current_file_path", "")
 
         def visit(node, parent_class=None):
-            if node.kind() == "class_definition":
+            if node.type == "class_definition":
                 class_name = self._get_identifier(node, source)
 
                 for child in _children(node):
-                    if child.kind() == "argument_list":
+                    if child.type == "argument_list":
                         bases = self._extract_bases(child, source)
                         for base in bases:
                             edges.append(
@@ -213,7 +215,7 @@ class PythonParser(LanguageParser):
             for child in _children(node):
                 visit(child, parent_class)
 
-        visit(tree.root_node())
+        visit(tree.root_node)
         return edges
 
     def extract_types(self, tree, source: str) -> list[NodeInfo]:
@@ -222,7 +224,7 @@ class PythonParser(LanguageParser):
         fp = getattr(self, "_current_file_path", "")
 
         def visit(node):
-            if node.kind() == "class_definition":
+            if node.type == "class_definition":
                 name = self._get_identifier(node, source)
                 if name:
                     nodes.append(
@@ -238,7 +240,7 @@ class PythonParser(LanguageParser):
             for child in _children(node):
                 visit(child)
 
-        visit(tree.root_node())
+        visit(tree.root_node)
         return nodes
 
     def extract_tests(self, tree, source: str) -> list[NodeInfo]:
@@ -247,7 +249,7 @@ class PythonParser(LanguageParser):
         fp = getattr(self, "_current_file_path", "")
 
         def visit(node):
-            if node.kind() == "function_definition":
+            if node.type == "function_definition":
                 name = self._get_identifier(node, source)
                 if name and (name.startswith("test_") or name == "setUp" or name == "tearDown"):
                     nodes.append(
@@ -264,47 +266,47 @@ class PythonParser(LanguageParser):
             for child in _children(node):
                 visit(child)
 
-        visit(tree.root_node())
+        visit(tree.root_node)
         return nodes
 
     # Helper methods
     def _get_identifier(self, node, source: str) -> Optional[str]:
         for child in _children(node):
-            if child.kind() == "identifier":
+            if child.type == "identifier":
                 return _node_text(child, source)
         return None
 
     def _extract_params(self, node, source: str) -> Optional[list[str]]:
         params = []
         for child in _children(node):
-            if child.kind() == "parameters":
+            if child.type == "parameters":
                 for param in _children(child):
-                    if param.kind() == "identifier":
+                    if param.type == "identifier":
                         params.append(_node_text(param, source))
         return params if params else None
 
     def _get_call_target(self, node, source: str) -> Optional[str]:
-        if node.child_count() > 0:
+        if node.child_count > 0:
             func_node = node.child(0)
-            if func_node.kind() == "identifier":
+            if func_node.type == "identifier":
                 return _node_text(func_node, source)
         return None
 
     def _extract_import_module(self, node, source: str) -> Optional[str]:
         for child in _children(node):
-            if child.kind() in ("dotted_name", "identifier"):
+            if child.type in ("dotted_name", "identifier"):
                 return _node_text(child, source)
         return None
 
     def _extract_from_import(self, node, source: str) -> Optional[str]:
         for child in _children(node):
-            if child.kind() in ("dotted_name", "identifier"):
+            if child.type in ("dotted_name", "identifier"):
                 return _node_text(child, source)
         return None
 
     def _extract_bases(self, node, source: str) -> list[str]:
         bases = []
         for child in _children(node):
-            if child.kind() == "identifier":
+            if child.type == "identifier":
                 bases.append(_node_text(child, source))
         return bases

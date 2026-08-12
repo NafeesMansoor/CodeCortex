@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 def _children(node) -> list:
-    return [node.child(i) for i in range(node.child_count())]
+    return [node.child(i) for i in range(node.child_count)]
 
 
 def _text(node, source: str) -> str:
@@ -95,7 +95,7 @@ class CFGBuilder:
         """
         edges: list[CPGEdge] = []
         self._walk(
-            tree.root_node(),
+            tree.root_node,
             source,
             file_path,
             func_name_map,
@@ -115,7 +115,7 @@ class CFGBuilder:
         in_control: bool,
         edges: list[CPGEdge],
     ) -> None:
-        ntype = node.kind()
+        ntype = node.type
 
         # Track enclosing function
         if ntype in (
@@ -160,20 +160,20 @@ class CFGBuilder:
 
 def _identifier(node, source: str) -> str:
     for child in _children(node):
-        if child.kind() == "identifier":
+        if child.type == "identifier":
             return _text(child, source)
     return ""
 
 
 def _call_target(node, source: str) -> Optional[str]:
-    if node.child_count() == 0:
+    if node.child_count == 0:
         return None
     first = node.child(0)
-    if first.kind() == "identifier":
+    if first.type == "identifier":
         return _text(first, source)
     # member access: obj.method(...)
-    if first.kind() in ("attribute", "member_expression"):
+    if first.type in ("attribute", "member_expression"):
         for child in _children(first):
-            if child.kind() == "identifier":
+            if child.type == "identifier":
                 return _text(child, source)
     return None

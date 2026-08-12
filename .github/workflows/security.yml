@@ -25,11 +25,13 @@ jobs:
       - name: Install security tools
         run: pip install bandit pip-audit
 
+      # Exclusions must match the paths bandit walks: with `-r .` it reports
+      # ./tests/..., so bare "tests" never matched and the test tree was scanned.
       - name: Run Bandit (static security analysis)
         run: |
           bandit -r . \
             --skip B101,B105,B110,B112,B311,B403,B404,B603,B607 \
-            --exclude .git,.venv,tests,visualization/static \
+            --exclude ./.git,./.venv,./tests,./build,./dist,./visualization/static \
             -f txt -q
 
       - name: Audit dependencies for known vulnerabilities

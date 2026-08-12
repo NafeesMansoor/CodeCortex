@@ -29,14 +29,10 @@ def build_scores(nodes):
 
 
 class _FakeNode:
+    """Stands in for a tree-sitter node: byte offsets are attributes, not calls."""
+
     def __init__(self, start, end):
-        self._start, self._end = start, end
-
-    def start_byte(self):
-        return self._start
-
-    def end_byte(self):
-        return self._end
+        self.start_byte, self.end_byte = start, end
 
 
 class TestByteSlice:
@@ -100,3 +96,41 @@ class TestParserOnNonAsciiSource:
         with_unicode = sorted(n.name for n in parser.parse(NON_ASCII_SOURCE, "a.py").nodes)
         without = sorted(n.name for n in parser.parse(ascii_source, "a.py").nodes)
         assert with_unicode == without
+
+
+class TestParseBufferLifetime:
+    """The parser borrows the buffer it is given instead of copying it.
+
+    Handing it a temporary is a use-after-free: the tree keeps reading from
+    freed memory and the process segfaults later, in whichever file happens to
+    be parsed once the allocator reuses the page.
+    """
+
+    def test_source_keeps_its_parse_buffer_alive(self):
+        source = SourceText("def alpha():\n    return 1\n")
+        assert source.as_bytes() is source.buffer
+        # Same object every time — not a fresh temporary per call.
+        assert source.as_bytes() is source.as_bytes()
+
+    def test_buffer_matches_the_offsets_used_for_slicing(self):
+        for text in ("def alpha(): pass\n", "def alpha():  # — dash\n    pass\n"):
+            source = SourceText(text)
+            assert source.as_bytes() == text.encode("utf-8")
+            assert byte_slice(source, 4, 9) == text.encode("utf-8")[4:9].decode("utf-8")
+
+    def test_repeated_parsing_survives_collection(self):
+        """Parse enough trees to churn the allocator, then force a collection."""
+        import gc
+
+        parser = PythonParser()
+        results = [
+            parser.parse(f"def fn_{i}():\n    value_{i} = {i}\n    return value_{i}\n", f"m{i}.py")
+            for i in range(60)
+        ]
+        gc.collect()
+
+        # Reading through the trees after collection is what would crash if the
+        # buffers had been freed.
+        for i, result in enumerate(results):
+            assert result._tree.root_node.start_point.row == 0
+            assert f"fn_{i}" in {n.name for n in result.nodes}

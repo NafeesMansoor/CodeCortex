@@ -31,7 +31,7 @@ from graph.schema import CPGNode
 
 
 def _children(node) -> list:
-    return [node.child(i) for i in range(node.child_count())]
+    return [node.child(i) for i in range(node.child_count)]
 
 
 logger = logging.getLogger(__name__)
@@ -87,7 +87,7 @@ class EndpointDetector:
 
         # Walk tree-sitter decorated functions
         self._walk_python(
-            tree.root_node(), source, file_path, func_name_map, endpoints, parent_decorators=[]
+            tree.root_node, source, file_path, func_name_map, endpoints, parent_decorators=[]
         )
         return endpoints
 
@@ -100,14 +100,14 @@ class EndpointDetector:
         endpoints: list[CPGNode],
         parent_decorators: list[str],
     ) -> None:
-        if node.kind() == "decorated_definition":
+        if node.type == "decorated_definition":
             decorators = []
             inner = None
             for child in _children(node):
-                if child.kind() == "decorator":
+                if child.type == "decorator":
                     dec_text = _text(child, source)
                     decorators.append(dec_text)
-                elif child.kind() in ("function_definition", "async_function_definition"):
+                elif child.type in ("function_definition", "async_function_definition"):
                     inner = child
             if inner:
                 ep = self._python_endpoint_from_decorators(
@@ -150,8 +150,8 @@ class EndpointDetector:
                         name=func_name,
                         file_path=file_path,
                         range=SourceRange(
-                            func_node.start_position().row + 1,
-                            func_node.end_position().row + 1,
+                            func_node.start_point.row + 1,
+                            func_node.end_point.row + 1,
                         ),
                         extra={
                             "http_method": http_method,
@@ -293,7 +293,7 @@ def _nextjs_route_path(file_path: str) -> str:
 
 def _identifier(node, source: str) -> str:
     for child in _children(node):
-        if child.kind() == "identifier":
+        if child.type == "identifier":
             return _text(child, source)
     return ""
 
