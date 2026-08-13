@@ -8,7 +8,8 @@ Show the top centrality hotspots in the code-review-graph CPG — the nodes with
 
 ```python
 import sys
-sys.path.insert(0, '/Users/nafees/Desktop/Claude/CodeCortex')
+
+sys.path.insert(0, "/Users/nafees/Desktop/Claude/CodeCortex")
 
 from core.parsers import PythonParser
 from core.parser_framework import ParserRegistry
@@ -19,18 +20,20 @@ import pathlib
 
 registry = ParserRegistry()
 registry.register(PythonParser())
-store = GraphStore(':memory:')
+store = GraphStore(":memory:")
 builder = CPGBuilder(store)
-target = pathlib.Path('code-review-graph/code_review_graph')
-for f in target.rglob('*.py'):
-    result = registry.get('py').parse(f.read_text(errors='replace'), str(f))
+target = pathlib.Path("code-review-graph/code_review_graph")
+for f in target.rglob("*.py"):
+    result = registry.get("py").parse(f.read_text(errors="replace"), str(f))
     builder.ingest(result)
 
 engine = CentralityEngine(store)
 scores = engine.compute()
 hotspots = CentralityEngine.hotspots(scores, n=20)
 for rank, (name, s) in enumerate(hotspots, 1):
-    print(f"{rank:2}. {name:40s}  composite={s.composite_score:.5f}  fan_in={s.fan_in}  bridge={s.bridge_score:.4f}")
+    print(
+        f"{rank:2}. {name:40s}  composite={s.composite_score:.5f}  fan_in={s.fan_in}  bridge={s.bridge_score:.4f}"
+    )
 ```
 
 2. Present results as a ranked table: rank, symbol name, composite score, fan-in, bridge score.

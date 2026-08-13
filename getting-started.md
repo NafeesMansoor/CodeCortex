@@ -308,6 +308,7 @@ pipeline.reindex_file("/path/to/repo/auth/service.py")
 # Export graph for visualization
 from visualization import export_pipeline
 import json
+
 data = export_pipeline(pipeline, project_name="my-project")
 json.dump(data, open("graph.json", "w"), indent=2)
 ```

@@ -19,7 +19,24 @@ from __future__ import annotations
 import contextlib
 import sqlite3
 
+from core.db_schema import ensure_schema
 from indexing.indexing_provider import SymbolOccurrence
+
+# Bump when the DDL below changes; stale caches are then rebuilt.
+SCHEMA_VERSION = 1
+
+_SCHEMA = """
+CREATE TABLE IF NOT EXISTS occurrences (
+    id        INTEGER PRIMARY KEY,
+    symbol    TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    line      INTEGER NOT NULL,
+    col       INTEGER NOT NULL DEFAULT 0,
+    role      TEXT NOT NULL DEFAULT 'reference'
+);
+CREATE INDEX IF NOT EXISTS idx_occ_symbol    ON occurrences(symbol);
+CREATE INDEX IF NOT EXISTS idx_occ_file_path ON occurrences(file_path);
+"""
 
 
 class ReferenceGraph:
@@ -32,19 +49,13 @@ class ReferenceGraph:
         self._create_schema()
 
     def _create_schema(self) -> None:
-        self._conn.executescript("""
-            CREATE TABLE IF NOT EXISTS occurrences (
-                id        INTEGER PRIMARY KEY,
-                symbol    TEXT NOT NULL,
-                file_path TEXT NOT NULL,
-                line      INTEGER NOT NULL,
-                col       INTEGER NOT NULL DEFAULT 0,
-                role      TEXT NOT NULL DEFAULT 'reference'
-            );
-            CREATE INDEX IF NOT EXISTS idx_occ_symbol    ON occurrences(symbol);
-            CREATE INDEX IF NOT EXISTS idx_occ_file_path ON occurrences(file_path);
-        """)
-        self._conn.commit()
+        ensure_schema(
+            self._conn,
+            store="reference graph",
+            expected=SCHEMA_VERSION,
+            create_sql=_SCHEMA,
+            tables=("occurrences",),
+        )
 
     # ------------------------------------------------------------------
     # Write

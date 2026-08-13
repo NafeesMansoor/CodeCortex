@@ -16,7 +16,8 @@ Ingest a codebase directory into the CodeCortex CPG and report coverage metrics.
 
 ```python
 import sys, time
-sys.path.insert(0, '/Users/nafees/Desktop/Claude/CodeCortex')
+
+sys.path.insert(0, "/Users/nafees/Desktop/Claude/CodeCortex")
 
 from core.parser_framework import ParserRegistry
 from core.parsers import PythonParser, JavaScriptParser, TypeScriptParser, PHPParser
@@ -31,22 +32,22 @@ registry.register(JavaScriptParser())
 registry.register(TypeScriptParser())
 registry.register(PHPParser())
 
-store = GraphStore(':memory:')
+store = GraphStore(":memory:")
 builder = CPGBuilder(store)
 
-target = pathlib.Path('$ARGUMENTS').expanduser().resolve()
-extensions = {'.py', '.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.php'}
-files = [f for f in target.rglob('*') if f.suffix in extensions]
+target = pathlib.Path("$ARGUMENTS").expanduser().resolve()
+extensions = {".py", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".php"}
+files = [f for f in target.rglob("*") if f.suffix in extensions]
 
 tracemalloc.start()
 t0 = time.perf_counter()
 errors = 0
 for f in files:
-    parser = registry.get(f.suffix.lstrip('.'))
+    parser = registry.get(f.suffix.lstrip("."))
     if not parser:
         continue
     try:
-        result = parser.parse(f.read_text(errors='replace'), str(f))
+        result = parser.parse(f.read_text(errors="replace"), str(f))
         builder.ingest(result)
     except Exception:
         errors += 1
@@ -59,8 +60,8 @@ print(f"Nodes: {store.node_count()}")
 print(f"Edges: {store.edge_count()}")
 print(f"Parse errors: {errors}")
 print(f"Build time: {elapsed:.3f}s")
-print(f"Peak memory: {peak/1e6:.2f} MB")
-print(f"Throughput: {len(files)/elapsed:.1f} files/s")
+print(f"Peak memory: {peak / 1e6:.2f} MB")
+print(f"Throughput: {len(files) / elapsed:.1f} files/s")
 ```
 
 2. Report the output as a summary table.

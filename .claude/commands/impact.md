@@ -16,7 +16,8 @@ Show the blast radius of a symbol change — which nodes are reachable from it v
 
 ```python
 import sys
-sys.path.insert(0, '/Users/nafees/Desktop/Claude/CodeCortex')
+
+sys.path.insert(0, "/Users/nafees/Desktop/Claude/CodeCortex")
 
 from core.parsers import PythonParser
 from core.parser_framework import ParserRegistry
@@ -29,18 +30,18 @@ import pathlib
 
 registry = ParserRegistry()
 registry.register(PythonParser())
-store = GraphStore(':memory:')
+store = GraphStore(":memory:")
 builder = CPGBuilder(store)
-target = pathlib.Path('code-review-graph/code_review_graph')
-for f in target.rglob('*.py'):
-    result = registry.get('py').parse(f.read_text(errors='replace'), str(f))
+target = pathlib.Path("code-review-graph/code_review_graph")
+for f in target.rglob("*.py"):
+    result = registry.get("py").parse(f.read_text(errors="replace"), str(f))
     builder.ingest(result)
 
 idx = SemanticIndex(store)
 engine = TraversalEngine(store)
 
 # Resolve the symbol
-matches = idx.find_by_name('$ARGUMENTS')
+matches = idx.find_by_name("$ARGUMENTS")
 if not matches:
     print(f"Symbol not found: $ARGUMENTS")
     sys.exit(1)

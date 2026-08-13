@@ -2,7 +2,7 @@
 
 **Adaptive semantic intelligence engine for large-scale code understanding.**
 
-> Version 1.0.1
+> Run `codecortex --version` for the installed version — see [CHANGELOG.md](CHANGELOG.md) for release history.
 
 CodeCortex transforms source code into a living, queryable semantic graph — combining Code Property Graphs, real embedding models, approximate nearest-neighbor retrieval, intelligent graph traversal, and an interactive human-facing visualization layer into a unified platform purpose-built for production-scale repositories.
 
@@ -311,16 +311,22 @@ codecortex --help
 
 ### Production Setup
 
+CodeCortex is distributed through GitHub Releases; install a specific,
+immutable version rather than a branch.
+
 ```bash
 # Minimal (structural analysis only)
-pip install codecortex
+pip install "codecortex @ git+https://github.com/NafeesMansoor/CodeCortex.git@v1.1.0"
+
+# Or from a release artifact
+pip install ./codecortex-1.1.0-py3-none-any.whl
 
 # With GPU-accelerated embeddings
-pip install "codecortex[embeddings]"
+pip install "codecortex[embeddings] @ git+https://github.com/NafeesMansoor/CodeCortex.git@v1.1.0"
 pip install torch --index-url https://download.pytorch.org/whl/cu121
 
-# Full stack
-pip install "codecortex[all]"
+# Verify
+codecortex health
 ```
 
 ### Environment Variables
@@ -331,6 +337,41 @@ pip install "codecortex[all]"
 | `OPENAI_API_KEY` | — | Required for `openai` provider |
 | `CODECORTEX_CACHE_DIR` | `.codecortex/` | Graph snapshot and cache directory |
 | `CODECORTEX_LOG_LEVEL` | `WARNING` | `DEBUG` · `INFO` · `WARNING` · `ERROR` |
+| `CODECORTEX_NO_UPDATE_CHECK` | — | Set to `1` to disable all outbound update checks |
+| `CODECORTEX_STATE_DIR` | `~/.codecortex/` | Update state and backups |
+| `CODECORTEX_UPDATE_REPO` | `NafeesMansoor/CodeCortex` | Repository to check for releases |
+
+---
+
+## Versioning & Updates
+
+CodeCortex follows Semantic Versioning, with the version defined once in
+`codecortex/version.py` and read from there by the packaging metadata.
+
+```bash
+codecortex --version          # CodeCortex 1.1.0
+codecortex version --check    # is a newer release available?
+codecortex update             # back up, install, migrate, verify, roll back on failure
+codecortex update --rollback  # restore the previous version
+codecortex health             # verify this installation
+```
+
+Updates detect how CodeCortex was installed (git checkout or pip package), move
+to an immutable release tag, preserve configuration, rebuild stale index caches,
+and verify the result in a fresh interpreter before committing to it. An update
+check never blocks startup and never sends information about your installation.
+
+Applications embedding CodeCortex should declare the range they support:
+
+```python
+from codecortex import require_version
+
+require_version(minimum="1.1.0", below="2.0.0", consumer="my-service")
+```
+
+Full detail — channels, migrations, rollback, offline installs, and the release
+process — is in [UPDATING.md](UPDATING.md). Release history is in
+[CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -436,6 +477,7 @@ pipeline.reindex_file("/path/to/repo/auth/service.py")
 
 # Export for visualization
 from visualization import export_pipeline
+
 graph_json = export_pipeline(pipeline, project_name="my-repo")
 ```
 
@@ -647,13 +689,13 @@ Create a virtualenv first: `python3 -m venv .venv && source .venv/bin/activate`,
 from core.parser_framework import LanguageParser
 from core.types import ParseResult
 
+
 class RustParser(LanguageParser):
     @property
     def language(self) -> str:
         return "rust"
 
-    def parse(self, source: str, file_path: str) -> ParseResult:
-        ...
+    def parse(self, source: str, file_path: str) -> ParseResult: ...
 ```
 
 ### Add an Embedding Provider
@@ -662,9 +704,9 @@ class RustParser(LanguageParser):
 from embeddings.provider_factory import EmbeddingProvider
 import numpy as np
 
+
 class MyProvider(EmbeddingProvider):
-    def embed(self, texts: list[str]) -> np.ndarray:
-        ...
+    def embed(self, texts: list[str]) -> np.ndarray: ...
 ```
 
 ### Export Graph Programmatically

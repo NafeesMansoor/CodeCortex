@@ -11,10 +11,14 @@ import sqlite3
 from contextlib import contextmanager
 from typing import Generator, Optional
 
+from core.db_schema import ensure_schema
 from core.types import EdgeKind, NodeKind
 from graph.schema import CPGEdge, CPGNode
 
 logger = logging.getLogger(__name__)
+
+# Bump when the nodes/edges DDL below changes; stale caches are then rebuilt.
+SCHEMA_VERSION = 1
 
 _NODES_DDL = """
 CREATE TABLE IF NOT EXISTS nodes (
@@ -101,12 +105,13 @@ class GraphStore:
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA synchronous=NORMAL")
-        with self._conn:
-            self._conn.execute(_NODES_DDL)
-            self._conn.execute(_EDGES_DDL)
-            for stmt in _EDGE_INDEX_DDL.strip().split(";"):
-                if stmt.strip():
-                    self._conn.execute(stmt)
+        ensure_schema(
+            self._conn,
+            store="graph",
+            expected=SCHEMA_VERSION,
+            create_sql=_NODES_DDL + ";" + _EDGES_DDL + ";" + _EDGE_INDEX_DDL,
+            tables=("nodes", "edges"),
+        )
 
     @contextmanager
     def _tx(self) -> Generator[sqlite3.Cursor, None, None]:

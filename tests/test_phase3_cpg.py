@@ -89,10 +89,11 @@ class TestTestsEdges:
 
 class TestCFGBuilder:
     def _tree_and_source(self, src: str):
-        import tree_sitter_language_pack as tslp
+        from core.parsers.grammars import get_parser
 
-        parser = tslp.get_parser("python")
-        tree = parser.parse(src)
+        parser = get_parser("python")
+        # tree-sitter parses bytes; the offsets it reports index into them.
+        tree = parser.parse(src.encode())
         return tree, src
 
     def test_controls_edges_from_if(self):
@@ -135,10 +136,11 @@ class TestCFGBuilder:
 
 class TestDFGBuilder:
     def _tree_and_source(self, src: str):
-        import tree_sitter_language_pack as tslp
+        from core.parsers.grammars import get_parser
 
-        parser = tslp.get_parser("python")
-        tree = parser.parse(src)
+        parser = get_parser("python")
+        # tree-sitter parses bytes; the offsets it reports index into them.
+        tree = parser.parse(src.encode())
         return tree, src
 
     def test_writes_edge_from_assignment(self):
@@ -170,10 +172,11 @@ class TestDFGBuilder:
 
 class TestEndpointDetector:
     def _tree(self, src: str, lang: str = "python"):
-        import tree_sitter_language_pack as tslp
+        from core.parsers.grammars import get_parser
 
-        parser = tslp.get_parser(lang)
-        return parser.parse(src), src
+        parser = get_parser(lang)
+        # tree-sitter parses bytes; the offsets it reports index into them.
+        return parser.parse(src.encode()), src
 
     def test_fastapi_get_detected(self):
         src = (

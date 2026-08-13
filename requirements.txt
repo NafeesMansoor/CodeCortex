@@ -1,12 +1,27 @@
 # CodeCortex — runtime dependencies
 # Install: pip install -r requirements.txt
 
-# Core parsing
-tree-sitter>=0.22
-tree-sitter-python>=0.22
-tree-sitter-javascript>=0.22
-tree-sitter-typescript>=0.22
-tree-sitter-language-pack>=0.22
+# Core parsing.
+# Both bounds are load-bearing:
+#   lower — language-pack 1.14 replaced its bundled parser binding with the
+#     upstream tree_sitter one (node accessors became properties, parse() takes
+#     bytes). The parsers target that API.
+#   upper — tree-sitter 0.26.0 segfaults when many Node.start_point /
+#     Node.end_point objects are created and later collected. Reproducible with
+#     the binding alone, no CodeCortex code involved; 0.26.0 is the newest
+#     release and has no fix, so indexing any non-trivial tree crashes on it.
+#     Lift this only after verifying `walk(root) -> n.start_point.row` over a
+#     few dozen files exits cleanly.
+tree-sitter>=0.25,<0.26
+tree-sitter-language-pack>=1.14,<2
+
+# Grammar wheels for the supported stack. These ship the compiled grammar, so
+# parsing never touches the network — the language pack downloads its grammars
+# on first use, which fails on an offline install and on any HTTP hiccup.
+tree-sitter-python>=0.23,<1.0
+tree-sitter-javascript>=0.23,<1.0
+tree-sitter-typescript>=0.23,<1.0
+tree-sitter-php>=0.23,<1.0
 
 # Graph & numerical
 networkx>=3.1

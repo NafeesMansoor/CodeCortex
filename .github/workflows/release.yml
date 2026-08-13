@@ -36,15 +36,40 @@ jobs:
           pip install -e .
           pytest tests/ --ignore=tests/benchmarks -q
 
+      - name: Verify tag matches the package version
+        run: python scripts/release_metadata.py --tag "${GITHUB_REF_NAME}" --check-only
+
       - name: Build distribution packages
         run: python -m build
 
       - name: Verify distribution
         run: twine check dist/*
 
+      - name: Verify built metadata carries the tagged version
+        run: |
+          python - <<'PY'
+          import os, pathlib, sys
+          tag = os.environ["GITHUB_REF_NAME"].lstrip("v")
+          names = [p.name for p in pathlib.Path("dist").iterdir()]
+          if not any(tag in name for name in names):
+              sys.exit(f"no artifact for {tag} in dist: {names}")
+          print("artifacts:", ", ".join(names))
+          PY
+
+      - name: Generate release metadata
+        run: |
+          python scripts/release_metadata.py \
+            --tag "${GITHUB_REF_NAME}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --output dist/update.json
+          cat dist/update.json
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+            dist/update.json
           generate_release_notes: true
           fail_on_unmatched_files: false

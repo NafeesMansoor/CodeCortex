@@ -24,9 +24,21 @@ class SourceText(str):
 
     def __new__(cls, text: str) -> "SourceText":
         obj = super().__new__(cls, text)
-        # ASCII text needs no second copy: byte offsets are character offsets.
-        obj.utf8 = None if obj.isascii() else obj.encode("utf-8")
+        # The parser borrows this buffer rather than copying it, and the tree
+        # keeps reading from it long after parse() returns — so it has to stay
+        # reachable for the lifetime of the source. Handing tree-sitter a
+        # temporary here is a use-after-free that segfaults much later, in
+        # whatever file happens to be parsed once the allocator reuses the page.
+        obj.buffer = text.encode("utf-8")
+        # ASCII text needs no second copy for slicing: byte offsets are
+        # character offsets, so `utf8` stays None and byte_slice takes the
+        # fast path.
+        obj.utf8 = None if obj.isascii() else obj.buffer
         return obj
+
+    def as_bytes(self) -> bytes:
+        """The UTF-8 buffer to parse — the same bytes the offsets index into."""
+        return self.buffer
 
 
 def byte_slice(source, start: int, end: int) -> str:
@@ -44,4 +56,4 @@ def byte_slice(source, start: int, end: int) -> str:
 
 def node_text(node, source) -> str:
     """Return the source text spanned by a tree-sitter node."""
-    return byte_slice(source, node.start_byte(), node.end_byte())
+    return byte_slice(source, node.start_byte, node.end_byte)

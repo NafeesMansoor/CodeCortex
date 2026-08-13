@@ -41,6 +41,31 @@ jobs:
       - name: Run tests
         run: pytest tests/ --ignore=tests/benchmarks -q
 
+      - name: Verify a single version source
+        run: |
+          python - <<'PY'
+          from importlib.metadata import version
+          from codecortex.version import __version__
+          installed = version("codecortex")
+          assert installed == __version__, (
+              f"packaging metadata says {installed} but codecortex.version says {__version__}"
+          )
+          print(f"version {__version__} consistent across code and packaging metadata")
+          PY
+
+      - name: Verify the CLI reports its version
+        run: |
+          test "$(codecortex --version)" = "CodeCortex $(python -c 'from codecortex.version import __version__; print(__version__)')"
+          python -m codecortex --version
+
+      - name: Validate release metadata generation
+        run: python scripts/release_metadata.py --check-only
+
+      - name: Build distribution packages
+        run: |
+          pip install build
+          python -m build
+
       - name: Upload test results
         if: failure()
         uses: actions/upload-artifact@v4

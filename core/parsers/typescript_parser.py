@@ -9,17 +9,18 @@ from core.source_text import SourceText, byte_slice, node_text
 from core.types import EdgeInfo, EdgeKind, NodeInfo, NodeKind, ParseResult, SourceRange
 
 
-# tree-sitter-language-pack new callable API helpers
+# Node accessors are properties on the upstream tree_sitter API used by
+# tree-sitter-language-pack >= 1.14.
 def _children(node) -> list:
-    return [node.child(i) for i in range(node.child_count())]
+    return [node.child(i) for i in range(node.child_count)]
 
 
 def _start_line(node) -> int:
-    return node.start_position().row + 1
+    return node.start_point.row + 1
 
 
 def _end_line(node) -> int:
-    return node.end_position().row + 1
+    return node.end_point.row + 1
 
 
 def _node_text(node, source: str) -> str:
@@ -35,13 +36,14 @@ class TypeScriptParser(LanguageParser):
     def parse(self, source: str, file_path: str) -> ParseResult:
         """Parse TypeScript source code."""
         try:
-            import tree_sitter_language_pack as tslp
+            from core.parsers.grammars import get_parser
 
             self._current_file_path = file_path
-            parser = tslp.get_parser("typescript")
-            tree = parser.parse(source)
-            # Wrap once so every byte-offset slice below is O(1) and correct.
+            parser = get_parser("typescript")
+            # Wrap once so every byte-offset slice below is O(1) and correct,
+            # and parse the very bytes those offsets index into.
             source = SourceText(source)
+            tree = parser.parse(source.as_bytes())
 
             nodes = self.extract_definitions(tree, source)
             nodes.extend(self.extract_types(tree, source))
@@ -74,7 +76,7 @@ class TypeScriptParser(LanguageParser):
         fp = getattr(self, "_current_file_path", "")
 
         def visit(node):
-            if node.kind() in ("function_declaration", "arrow_function", "method_definition"):
+            if node.type in ("function_declaration", "arrow_function", "method_definition"):
                 name = self._get_identifier(node, source)
                 if name:
                     nodes.append(
@@ -90,7 +92,7 @@ class TypeScriptParser(LanguageParser):
             for child in _children(node):
                 visit(child)
 
-        visit(tree.root_node())
+        visit(tree.root_node)
         return nodes
 
     def extract_calls(self, tree, source: str) -> list[EdgeInfo]:
@@ -99,7 +101,7 @@ class TypeScriptParser(LanguageParser):
         fp = getattr(self, "_current_file_path", "")
 
         def visit(node, enclosing_func=None):
-            if node.kind() == "call_expression":
+            if node.type == "call_expression":
                 target = self._get_call_target(node, source)
                 if target and enclosing_func:
                     edges.append(
@@ -112,13 +114,13 @@ class TypeScriptParser(LanguageParser):
                     )
 
             new_func = enclosing_func
-            if node.kind() in ("function_declaration", "method_definition"):
+            if node.type in ("function_declaration", "method_definition"):
                 new_func = self._get_identifier(node, source)
 
             for child in _children(node):
                 visit(child, new_func)
 
-        visit(tree.root_node())
+        visit(tree.root_node)
         return edges
 
     def extract_imports(self, tree, source: str) -> list[EdgeInfo]:
@@ -127,7 +129,7 @@ class TypeScriptParser(LanguageParser):
         fp = getattr(self, "_current_file_path", "")
 
         def visit(node):
-            if node.kind() == "import_statement":
+            if node.type == "import_statement":
                 module = self._extract_import_module(node, source)
                 if module:
                     edges.append(
@@ -142,7 +144,7 @@ class TypeScriptParser(LanguageParser):
             for child in _children(node):
                 visit(child)
 
-        visit(tree.root_node())
+        visit(tree.root_node)
         return edges
 
     def extract_inheritance(self, tree, source: str) -> list[EdgeInfo]:
@@ -151,13 +153,13 @@ class TypeScriptParser(LanguageParser):
         fp = getattr(self, "_current_file_path", "")
 
         def visit(node):
-            if node.kind() == "class_declaration":
+            if node.type == "class_declaration":
                 class_name = self._get_identifier(node, source)
 
                 for child in _children(node):
-                    if child.kind() == "class_heritage":
+                    if child.type == "class_heritage":
                         for heritage in _children(child):
-                            if heritage.kind() == "identifier":
+                            if heritage.type == "identifier":
                                 base = _node_text(heritage, source)
                                 edges.append(
                                     EdgeInfo(
@@ -171,7 +173,7 @@ class TypeScriptParser(LanguageParser):
             for child in _children(node):
                 visit(child)
 
-        visit(tree.root_node())
+        visit(tree.root_node)
         return edges
 
     def extract_types(self, tree, source: str) -> list[NodeInfo]:
@@ -180,11 +182,11 @@ class TypeScriptParser(LanguageParser):
         fp = getattr(self, "_current_file_path", "")
 
         def visit(node):
-            if node.kind() in ("class_declaration", "interface_declaration"):
+            if node.type in ("class_declaration", "interface_declaration"):
                 name = self._get_identifier(node, source)
                 if name:
                     kind = (
-                        NodeKind.CLASS if node.kind() == "class_declaration" else NodeKind.INTERFACE
+                        NodeKind.CLASS if node.type == "class_declaration" else NodeKind.INTERFACE
                     )
 
                     nodes.append(
@@ -200,7 +202,7 @@ class TypeScriptParser(LanguageParser):
             for child in _children(node):
                 visit(child)
 
-        visit(tree.root_node())
+        visit(tree.root_node)
         return nodes
 
     def extract_tests(self, tree, source: str) -> list[NodeInfo]:
@@ -209,7 +211,7 @@ class TypeScriptParser(LanguageParser):
         fp = getattr(self, "_current_file_path", "")
 
         def visit(node):
-            if node.kind() == "function_declaration":
+            if node.type == "function_declaration":
                 name = self._get_identifier(node, source)
                 if name and (
                     name.startswith("test") or name.startswith("it") or name.startswith("describe")
@@ -228,26 +230,26 @@ class TypeScriptParser(LanguageParser):
             for child in _children(node):
                 visit(child)
 
-        visit(tree.root_node())
+        visit(tree.root_node)
         return nodes
 
     # Helpers
     def _get_identifier(self, node, source: str) -> Optional[str]:
         for child in _children(node):
-            if child.kind() == "identifier":
+            if child.type == "identifier":
                 return _node_text(child, source)
         return None
 
     def _get_call_target(self, node, source: str) -> Optional[str]:
-        if node.child_count() > 0:
+        if node.child_count > 0:
             target_node = node.child(0)
-            if target_node.kind() == "identifier":
+            if target_node.type == "identifier":
                 return _node_text(target_node, source)
         return None
 
     def _extract_import_module(self, node, source: str) -> Optional[str]:
         for child in _children(node):
-            if child.kind() == "string":
+            if child.type == "string":
                 # Trim the surrounding quotes, which are one byte each.
-                return byte_slice(source, child.start_byte() + 1, child.end_byte() - 1)
+                return byte_slice(source, child.start_byte + 1, child.end_byte - 1)
         return None

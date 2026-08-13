@@ -14,7 +14,8 @@ Run a hybrid GraphRAG retrieval query against the code-review-graph CPG and retu
 
 ```python
 import sys
-sys.path.insert(0, '/Users/nafees/Desktop/Claude/CodeCortex')
+
+sys.path.insert(0, "/Users/nafees/Desktop/Claude/CodeCortex")
 
 from core.parsers import PythonParser
 from core.parser_framework import ParserRegistry
@@ -29,22 +30,22 @@ import pathlib
 
 registry = ParserRegistry()
 registry.register(PythonParser())
-store = GraphStore(':memory:')
+store = GraphStore(":memory:")
 builder = CPGBuilder(store)
-target = pathlib.Path('code-review-graph/code_review_graph')
-for f in target.rglob('*.py'):
-    result = registry.get('py').parse(f.read_text(errors='replace'), str(f))
+target = pathlib.Path("code-review-graph/code_review_graph")
+for f in target.rglob("*.py"):
+    result = registry.get("py").parse(f.read_text(errors="replace"), str(f))
     builder.ingest(result)
 
 idx = SemanticIndex(store)
-provider = create_embedding_provider(EmbeddingConfig(backend='stub'))
+provider = create_embedding_provider(EmbeddingConfig(backend="stub"))
 emb_store = EmbeddingStore(provider, dimension=384)
 for node in store.all_nodes():
-    emb_store.add(node.qualified_name, node.name + ' ' + node.file_path)
+    emb_store.add(node.qualified_name, node.name + " " + node.file_path)
 
 centrality = CentralityEngine(store).compute()
 layer = RetrievalLayer(idx, emb_store, centrality)
-results = layer.retrieve('$ARGUMENTS', top_k=10)
+results = layer.retrieve("$ARGUMENTS", top_k=10)
 for r in results:
     print(f"{r.score:.4f}  {r.node.qualified_name}  [{r.node.kind.value}]  {r.node.file_path}")
 ```

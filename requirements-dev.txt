@@ -3,7 +3,10 @@
 
 pytest>=8.0
 pytest-cov>=4.0
-ruff>=0.4
+# Pinned to a minor: ruff's formatter output changes between minors (0.16 began
+# formatting Python blocks inside Markdown), which turns `--check` in CI into a
+# failure nobody changed anything to cause.
+ruff>=0.16,<0.17
 mypy>=1.8
 
 # Semantic indexing (used in integration tests)
