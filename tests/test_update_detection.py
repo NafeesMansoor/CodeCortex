@@ -82,6 +82,57 @@ class TestURLValidation:
             updater._get_json("http://example.com/x", timeout=1)
 
 
+class TestTLSVerification:
+    """An interpreter with no CA store must still be able to check for updates.
+
+    A python.org build on macOS ships without one, so every request failed with
+    CERTIFICATE_VERIFY_FAILED until the context carried its own bundle.
+    """
+
+    def test_context_verifies_certificates(self):
+        import ssl
+
+        context = updater._ssl_context()
+        assert context.verify_mode == ssl.CERT_REQUIRED
+        assert context.check_hostname is True
+
+    def test_context_loads_certificate_authorities(self):
+        assert len(updater._ssl_context().get_ca_certs()) > 0
+
+    def test_context_is_reused(self):
+        assert updater._ssl_context() is updater._ssl_context()
+
+    def test_certificate_failure_explains_the_fix(self):
+        import ssl
+
+        exc = ssl.SSLCertVerificationError(
+            "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: "
+            "unable to get local issuer certificate (_ssl.c:1028)"
+        )
+        message = updater._describe_transport_failure(exc)
+        assert "could not reach the release service" in message
+        assert "Install Certificates.command" in message
+        assert "pip install --upgrade certifi" in message
+
+    def test_ordinary_failure_stays_terse(self):
+        message = updater._describe_transport_failure(urllib.error.URLError("offline"))
+        assert "could not reach the release service" in message
+        assert "certifi" not in message
+
+    def test_certificate_failure_is_reported_not_raised(self, monkeypatch):
+        import ssl
+
+        def explode(url, timeout):
+            raise ssl.SSLCertVerificationError(
+                "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed"
+            )
+
+        monkeypatch.setattr(updater, "_get_json", explode)
+        info = updater.check_for_updates(repo=REPO, force=True)
+        assert not info.update_available
+        assert "Install Certificates.command" in info.error
+
+
 class TestReleaseParsing:
     def test_valid_release(self):
         release = updater._parse_release(release_json("v1.4.2"))

@@ -5,7 +5,8 @@ Design constraints that shaped this module:
 * An update check must never stop CodeCortex from working. Every network path
   here is wrapped, bounded by a timeout, and degrades to "unknown" — never to an
   exception reaching the caller.
-* No new dependencies: `urllib.request` over HTTPS only.
+* `urllib.request` over HTTPS only, verified against certifi's CA bundle when
+  the interpreter has no usable trust store of its own.
 * No credentials. The check reads a public release list and sends nothing about
   the installation, so there is no token to leak and no telemetry to opt out of.
 * Release metadata arrives from the network and is therefore untrusted: tags
@@ -18,11 +19,13 @@ from __future__ import annotations
 import json
 import logging
 import os
+import ssl
 import threading
 import urllib.error
 import urllib.request
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Optional
 
@@ -125,6 +128,39 @@ def _host_allowed(url: str) -> bool:
     return parsed.scheme == "https" and parsed.hostname in _ALLOWED_HOSTS
 
 
+@lru_cache(maxsize=1)
+def _ssl_context() -> ssl.SSLContext:
+    """A verifying TLS context that works on interpreters with no CA store.
+
+    A python.org build on macOS ships without one, so `ssl.create_default_context()`
+    trusts nothing and every request fails with CERTIFICATE_VERIFY_FAILED until
+    somebody runs Install Certificates.command. Falling back to certifi — the
+    same bundle pip itself trusts — makes update checks work out of the box.
+
+    Verification is never disabled: an installer that accepts any certificate is
+    worse than one that cannot reach the network.
+    """
+    try:
+        import certifi
+
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception as exc:  # certifi missing or unreadable — use the platform store
+        logger.debug("certifi unavailable, using the platform CA store: %s", exc)
+        return ssl.create_default_context()
+
+
+def _describe_transport_failure(exc: Exception) -> str:
+    """Explain a failed check, with the fix when the cause is a known one."""
+    message = f"could not reach the release service: {exc}"
+    if "CERTIFICATE_VERIFY_FAILED" in str(exc):
+        message += (
+            "\n  This interpreter has no CA certificates. On macOS run"
+            " 'Install Certificates.command' from your Python installation,"
+            " or: pip install --upgrade certifi"
+        )
+    return message
+
+
 def _get_json(url: str, timeout: float) -> Any:
     """HTTPS GET returning parsed JSON. Raises on any failure."""
     if not _host_allowed(url):
@@ -139,7 +175,9 @@ def _get_json(url: str, timeout: float) -> Any:
     )
     # Scheme and host are validated by _host_allowed above, so only HTTPS
     # requests to known GitHub hosts reach this call.
-    with urllib.request.urlopen(request, timeout=timeout) as response:  # nosec B310
+    with urllib.request.urlopen(  # nosec B310
+        request, timeout=timeout, context=_ssl_context()
+    ) as response:
         payload = response.read(2_000_000)
     return json.loads(payload.decode("utf-8"))
 
@@ -397,7 +435,7 @@ def check_for_updates(
             current_version=str(installed),
             channel=channel,
             checked_at=_now_iso(),
-            error=f"could not reach the release service: {exc}",
+            error=_describe_transport_failure(exc),
         )
 
     info = _info_from_release(release, channel)
