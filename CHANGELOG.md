@@ -4,7 +4,7 @@ All notable changes to CodeCortex are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and CodeCortex uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.0] - 2026-08-13
 
 ### Added
 
@@ -106,7 +106,7 @@ All notable changes to CodeCortex are recorded here. The format follows
 - Initial release: parsing, code property graph, semantic indexing, embeddings,
   clustering, traversal, ranking, retrieval and the end-to-end pipeline.
 
-[Unreleased]: https://github.com/NafeesMansoor/CodeCortex/compare/v1.1.0...HEAD
+[1.2.0]: https://github.com/NafeesMansoor/CodeCortex/releases/tag/v1.2.0
 [1.1.0]: https://github.com/NafeesMansoor/CodeCortex/releases/tag/v1.1.0
 [1.0.1]: https://github.com/NafeesMansoor/CodeCortex/releases/tag/v1.0.1
 [1.0.0]: https://github.com/NafeesMansoor/CodeCortex/releases/tag/v1.0.0

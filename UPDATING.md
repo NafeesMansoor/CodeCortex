@@ -31,7 +31,7 @@ CodeCortex follows Semantic Versioning: `MAJOR.MINOR.PATCH`.
 The version lives in exactly one place — `codecortex/version.py`:
 
 ```python
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 ```
 
 `pyproject.toml` reads that attribute statically (`[tool.setuptools.dynamic]`),
@@ -49,7 +49,7 @@ print(__version__)
 ## Checking your version
 
 ```bash
-codecortex --version              # CodeCortex 1.1.0
+codecortex --version              # CodeCortex 1.2.0
 codecortex version                # version, installation model, last update check
 codecortex version --check        # ask the release service for a newer version
 codecortex version --json         # machine-readable installation metadata
@@ -206,10 +206,10 @@ codecortex health --index-dir .codecortex --config codecortex.yaml
 ```
 
 ```text
-CodeCortex Health Check (1.1.0)
+CodeCortex Health Check (1.2.0)
 
   [OK  ] Core modules — all import cleanly
-  [OK  ] Version metadata — code 1.1.0 == metadata 1.1.0
+  [OK  ] Version metadata — code 1.2.0 == metadata 1.2.0
   [OK  ] Database engine — sqlite 3.53.3
   [OK  ] Configuration — codecortex.yaml parsed
   [OK  ] Index caches — 4 database(s) at the current schema
@@ -306,12 +306,40 @@ update is required.
 ```text
 1.0.x → latest
 1.1.x → latest
+1.2.x → latest
 ```
 
 Every 1.x release upgrades directly to the newest 1.x release; there are no
 staged upgrades today. If that changes, `minimum_version` in the release's
 `update.json` will say so, and `codecortex update` will report the requirement
 instead of attempting the jump.
+
+### The one exception: installations older than 1.2.0
+
+`codecortex update` was introduced in 1.2.0, so 1.0.x and 1.1.x have no such
+command — there is nothing on those versions to run. They need one manual
+upgrade to pick it up; after that the normal flow applies.
+
+```bash
+# pip installation
+pip install --upgrade "codecortex @ git+https://github.com/NafeesMansoor/CodeCortex.git@v1.2.0"
+
+# git checkout (commit or stash local changes first)
+cd /path/to/CodeCortex
+git fetch --tags origin && git checkout v1.2.0 && pip install -e .
+```
+
+Then verify and re-index:
+
+```bash
+codecortex --version    # CodeCortex 1.2.0
+codecortex health
+codecortex index .      # unstamped caches from older versions rebuild here
+```
+
+Configuration is untouched by either route. Caches written before 1.2.0 carry
+no schema stamp, so the first open rebuilds them — see
+[Index cache migrations](#index-cache-migrations).
 
 ## Troubleshooting
 
