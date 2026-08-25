@@ -316,13 +316,13 @@ immutable version rather than a branch.
 
 ```bash
 # Minimal (structural analysis only)
-pip install "codecortex @ git+https://github.com/NafeesMansoor/CodeCortex.git@v1.1.0"
+pip install "codecortex @ git+https://github.com/NafeesMansoor/CodeCortex.git@v1.2.0"
 
 # Or from a release artifact
-pip install ./codecortex-1.1.0-py3-none-any.whl
+pip install ./codecortex-1.2.0-py3-none-any.whl
 
 # With GPU-accelerated embeddings
-pip install "codecortex[embeddings] @ git+https://github.com/NafeesMansoor/CodeCortex.git@v1.1.0"
+pip install "codecortex[embeddings] @ git+https://github.com/NafeesMansoor/CodeCortex.git@v1.2.0"
 pip install torch --index-url https://download.pytorch.org/whl/cu121
 
 # Verify
@@ -349,7 +349,7 @@ CodeCortex follows Semantic Versioning, with the version defined once in
 `codecortex/version.py` and read from there by the packaging metadata.
 
 ```bash
-codecortex --version          # CodeCortex 1.1.0
+codecortex --version          # CodeCortex 1.2.0
 codecortex version --check    # is a newer release available?
 codecortex update             # back up, install, migrate, verify, roll back on failure
 codecortex update --rollback  # restore the previous version
@@ -360,6 +360,47 @@ Updates detect how CodeCortex was installed (git checkout or pip package), move
 to an immutable release tag, preserve configuration, rebuild stale index caches,
 and verify the result in a fresh interpreter before committing to it. An update
 check never blocks startup and never sends information about your installation.
+
+### Upgrading from 1.1.0 or earlier
+
+`codecortex update` ships **with** 1.2.0, so an installation older than that has
+no such command yet — those versions predate the updater entirely. Upgrade once
+by hand; every release after this one is reachable with `codecortex update`.
+
+Check what you have, then pick the line matching how it was installed:
+
+```bash
+codecortex --version    # or: pip show codecortex
+```
+
+**Installed with pip:**
+
+```bash
+pip install --upgrade "codecortex @ git+https://github.com/NafeesMansoor/CodeCortex.git@v1.2.0"
+```
+
+**Installed as a git checkout** (`git clone` + `pip install -e .`):
+
+```bash
+cd /path/to/CodeCortex
+git fetch --tags origin
+git checkout v1.2.0        # commit or stash local changes first
+pip install -e .
+```
+
+Then confirm, and re-index once:
+
+```bash
+codecortex --version       # CodeCortex 1.2.0
+codecortex health          # expect Status: HEALTHY
+codecortex index .         # index caches from older versions are rebuilt
+```
+
+Your `codecortex.yaml` and any `.env` are left untouched by both routes.
+Existing index caches carry no schema stamp, so the first run rebuilds them —
+nothing is lost, because every cache is derived from your source tree.
+
+Anything older than 1.2.0 upgrades directly; there are no staged upgrades.
 
 Applications embedding CodeCortex should declare the range they support:
 

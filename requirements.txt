@@ -33,6 +33,11 @@ faiss-cpu>=1.7
 # Configuration
 pyyaml>=6.0
 
+# CA bundle for update checks. Interpreters without a system trust store — a
+# python.org build on macOS, most notably — cannot verify any HTTPS request
+# without it, which made every update check fail with CERTIFICATE_VERIFY_FAILED.
+certifi>=2023.7
+
 # ── Optional: real embeddings (pip install -r requirements-embeddings.txt) ──
 # sentence-transformers>=2.6
 # torch>=2.0

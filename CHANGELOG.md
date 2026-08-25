@@ -4,7 +4,7 @@ All notable changes to CodeCortex are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and CodeCortex uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.0] - 2026-08-13
 
 ### Added
 
@@ -67,6 +67,11 @@ All notable changes to CodeCortex are recorded here. The format follows
 - Version drift: `pyproject.toml` (1.1.0), `codecortex/__init__.py` (1.1.0) and
   the CLI banner each carried their own literal, and the installed distribution
   metadata had fallen behind at 1.0.0.
+- Update checks failed permanently on interpreters without a system CA store —
+  a python.org build on macOS most notably — with
+  `CERTIFICATE_VERIFY_FAILED: unable to get local issuer certificate`. Checks
+  now verify against certifi's bundle, and a certificate failure explains how to
+  fix it. Verification is never disabled.
 - CI: `ruff format --check` failed on six Markdown files after ruff 0.16 began
   formatting Python blocks inside Markdown; bandit's `--exclude` paths did not
   match what it walks under `-r .`, so the test tree was scanned and a test
@@ -106,7 +111,7 @@ All notable changes to CodeCortex are recorded here. The format follows
 - Initial release: parsing, code property graph, semantic indexing, embeddings,
   clustering, traversal, ranking, retrieval and the end-to-end pipeline.
 
-[Unreleased]: https://github.com/NafeesMansoor/CodeCortex/compare/v1.1.0...HEAD
+[1.2.0]: https://github.com/NafeesMansoor/CodeCortex/releases/tag/v1.2.0
 [1.1.0]: https://github.com/NafeesMansoor/CodeCortex/releases/tag/v1.1.0
 [1.0.1]: https://github.com/NafeesMansoor/CodeCortex/releases/tag/v1.0.1
 [1.0.0]: https://github.com/NafeesMansoor/CodeCortex/releases/tag/v1.0.0

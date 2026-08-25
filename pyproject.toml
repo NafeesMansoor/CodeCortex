@@ -36,6 +36,8 @@ dependencies = [
     "faiss-cpu>=1.7",
     "numpy>=1.24",
     "pyyaml>=6.0",
+    # CA bundle for update checks — see requirements.txt.
+    "certifi>=2023.7",
 ]
 
 [project.optional-dependencies]
