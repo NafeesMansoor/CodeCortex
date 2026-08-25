@@ -25,7 +25,7 @@ tree-sitter-php>=0.23,<1.0
 
 # Graph & numerical
 networkx>=3.1
-numpy>=1.24
+numpy>=2.2.6
 
 # Vector search
 faiss-cpu>=1.7
