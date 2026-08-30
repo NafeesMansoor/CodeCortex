@@ -212,6 +212,37 @@ class CodeCortexPipeline:
         logger.info("CodeCortex pipeline built: %s", stats)
         return stats
 
+    @staticmethod
+    def _build_ext_parser_map(languages: Optional[list[str]] = None) -> dict[str, object]:
+        """Map file extension (no dot, lowercase) -> parser instance.
+
+        Built from each parser's own ``.extensions`` list rather than the
+        language-handle keys (``"py"``, ``"ts"``, ...), since a handle only
+        ever names one extension per language and would silently drop the
+        rest (e.g. TypeScriptParser handles both ".ts" and ".tsx").
+        """
+        from core.parsers.python_parser import PythonParser
+
+        parsers = {"py": PythonParser()}
+
+        try:
+            from core.parsers.javascript_parser import JavaScriptParser
+            from core.parsers.php_parser import PHPParser
+            from core.parsers.typescript_parser import TypeScriptParser
+
+            parsers.update({"js": JavaScriptParser(), "ts": TypeScriptParser(), "php": PHPParser()})
+        except Exception:
+            pass
+
+        if languages:
+            parsers = {ext: p for ext, p in parsers.items() if ext in languages}
+
+        ext_to_parser: dict[str, object] = {}
+        for p in parsers.values():
+            for ext in p.extensions:
+                ext_to_parser[ext.lstrip(".").lower()] = p
+        return ext_to_parser
+
     def _build_cpg(
         self,
         root: Path,
@@ -220,7 +251,6 @@ class CodeCortexPipeline:
         on_progress: Optional[ProgressCallback] = None,
     ) -> tuple[int, int, object]:
         from core.file_walker import walk_source_files
-        from core.parsers.python_parser import PythonParser
         from graph.cpg_builder import CPGBuilder
         from graph.graph_store import GraphStore
 
@@ -238,20 +268,8 @@ class CodeCortexPipeline:
             enable_endpoints=cfg.enable_endpoints,
         )
 
-        parsers = {"py": PythonParser()}
-
-        try:
-            from core.parsers.javascript_parser import JavaScriptParser
-            from core.parsers.php_parser import PHPParser
-            from core.parsers.typescript_parser import TypeScriptParser
-
-            parsers.update({"js": JavaScriptParser(), "ts": TypeScriptParser(), "php": PHPParser()})
-        except Exception:
-            pass
-
-        if languages:
-            parsers = {ext: p for ext, p in parsers.items() if ext in languages}
-        if not parsers:
+        ext_to_parser = self._build_ext_parser_map(languages)
+        if not ext_to_parser:
             return 0, 0, store
 
         # One pruned walk for all extensions. Directories are skipped before
@@ -260,7 +278,7 @@ class CodeCortexPipeline:
         discovered = list(
             walk_source_files(
                 root,
-                extensions=parsers.keys(),
+                extensions=ext_to_parser.keys(),
                 exclude_dirs=cfg.exclude_dirs,
                 exclude_paths=exclude_paths,
                 respect_gitignore=cfg.respect_gitignore,
@@ -273,7 +291,7 @@ class CodeCortexPipeline:
         errors = 0
         self._indexed_files = []
         for index, file_path in enumerate(discovered, start=1):
-            parser = parsers[file_path.suffix.lstrip(".")]
+            parser = ext_to_parser[file_path.suffix.lstrip(".").lower()]
             try:
                 source = file_path.read_text(encoding="utf-8", errors="replace")
                 result = parser.parse(source, str(file_path))
@@ -300,7 +318,6 @@ class CodeCortexPipeline:
         if not to_expand:
             return 0
 
-        from core.parsers.python_parser import PythonParser
         from graph.cpg_builder import CPGBuilder
 
         builder = CPGBuilder(
@@ -309,12 +326,13 @@ class CodeCortexPipeline:
             enable_dfg=cfg.on_demand_dfg,
             enable_endpoints=False,
         )
-        parser = PythonParser()
+        ext_to_parser = self._build_ext_parser_map()
         before = self._store.edge_count()
 
         for fp in to_expand:
             path = Path(fp)
-            if not path.exists():
+            parser = ext_to_parser.get(path.suffix.lstrip(".").lower())
+            if not path.exists() or parser is None:
                 continue
             try:
                 source = path.read_text(encoding="utf-8", errors="replace")
@@ -486,14 +504,16 @@ class CodeCortexPipeline:
         if self._store is None or self._embedding_pipeline is None:
             return
 
-        from core.parsers.python_parser import PythonParser
         from graph.cpg_builder import CPGBuilder
 
         path = Path(file_path)
         if not path.exists():
             return
 
-        parser = PythonParser()
+        parser = self._build_ext_parser_map().get(path.suffix.lstrip(".").lower())
+        if parser is None:
+            return
+
         cfg = self.config
         builder = CPGBuilder(
             self._store,

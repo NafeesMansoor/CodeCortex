@@ -31,7 +31,7 @@ CodeCortex follows Semantic Versioning: `MAJOR.MINOR.PATCH`.
 The version lives in exactly one place — `codecortex/version.py`:
 
 ```python
-__version__ = "1.2.0"
+__version__ = "1.2.1"
 ```
 
 `pyproject.toml` reads that attribute statically (`[tool.setuptools.dynamic]`),
@@ -49,7 +49,7 @@ print(__version__)
 ## Checking your version
 
 ```bash
-codecortex --version              # CodeCortex 1.2.0
+codecortex --version              # CodeCortex 1.2.1
 codecortex version                # version, installation model, last update check
 codecortex version --check        # ask the release service for a newer version
 codecortex version --json         # machine-readable installation metadata
@@ -206,10 +206,10 @@ codecortex health --index-dir .codecortex --config codecortex.yaml
 ```
 
 ```text
-CodeCortex Health Check (1.2.0)
+CodeCortex Health Check (1.2.1)
 
   [OK  ] Core modules — all import cleanly
-  [OK  ] Version metadata — code 1.2.0 == metadata 1.2.0
+  [OK  ] Version metadata — code 1.2.1 == metadata 1.2.1
   [OK  ] Database engine — sqlite 3.53.3
   [OK  ] Configuration — codecortex.yaml parsed
   [OK  ] Index caches — 4 database(s) at the current schema
@@ -276,7 +276,7 @@ in a MINOR release.
 
 ```bash
 # 1. Update the version — the only place it lives
-$EDITOR codecortex/version.py          # __version__ = "1.2.0"
+$EDITOR codecortex/version.py          # __version__ = "1.2.1"
 
 # 2. Move the Unreleased notes into a dated section
 $EDITOR CHANGELOG.md
@@ -287,8 +287,8 @@ ruff check . && ruff format --check .
 python scripts/release_metadata.py --check-only
 
 # 4. Commit, tag, push
-git commit -am "release: v1.2.0"
-git tag v1.2.0
+git commit -am "release: v1.2.1"
+git tag v1.2.1
 git push origin main --tags
 ```
 
@@ -322,17 +322,17 @@ upgrade to pick it up; after that the normal flow applies.
 
 ```bash
 # pip installation
-pip install --upgrade "codecortex @ git+https://github.com/NafeesMansoor/CodeCortex.git@v1.2.0"
+pip install --upgrade "codecortex @ git+https://github.com/NafeesMansoor/CodeCortex.git@v1.2.1"
 
 # git checkout (commit or stash local changes first)
 cd /path/to/CodeCortex
-git fetch --tags origin && git checkout v1.2.0 && pip install -e .
+git fetch --tags origin && git checkout v1.2.1 && pip install -e .
 ```
 
 Then verify and re-index:
 
 ```bash
-codecortex --version    # CodeCortex 1.2.0
+codecortex --version    # CodeCortex 1.2.1
 codecortex health
 codecortex index .      # unstamped caches from older versions rebuild here
 ```

@@ -23,13 +23,6 @@ from core.types import ParseResult
 
 logger = logging.getLogger(__name__)
 
-_EXT_MAP = {
-    "python": "py",
-    "javascript": "js",
-    "typescript": "ts",
-    "php": "php",
-}
-
 
 class ParallelIndexer:
     """Thread-pool-based file parser.
@@ -49,14 +42,16 @@ class ParallelIndexer:
         from core.file_walker import walk_source_files
 
         root = Path(root)
-        ext = _EXT_MAP.get(language, language)
-        files = list(walk_source_files(root, [ext]))
-        if not files:
-            return []
-
         parser = self._get_parser(language)
         if parser is None:
             logger.warning("No parser for language %r", language)
+            return []
+
+        # Dispatch on the parser's own declared extensions (e.g. TypeScriptParser
+        # covers both ".ts" and ".tsx") rather than a single language->extension
+        # guess, which would silently miss ".jsx"/".tsx" files.
+        files = list(walk_source_files(root, parser.extensions))
+        if not files:
             return []
 
         results = []

@@ -15,7 +15,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Optional, Union
 
-__version__ = "1.2.0"
+__version__ = "1.2.1"
 
 # Installations older than this cannot upgrade in a single step; the updater
 # reports a mandatory staged upgrade instead. Raise it only on a release that

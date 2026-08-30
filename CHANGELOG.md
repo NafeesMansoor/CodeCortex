@@ -4,6 +4,32 @@ All notable changes to CodeCortex are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and CodeCortex uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-08-30
+
+### Fixed
+
+- **`.tsx`/`.jsx` files were silently invisible to the indexer.** The file
+  walker built its extension set from the language-handle keys (`"js"`,
+  `"ts"`) rather than each parser's declared `extensions` list, so it only
+  ever globbed `*.js`/`*.ts` and never looked for `*.jsx`/`*.tsx` — with no
+  error or warning, `codecortex index` reported a clean run while the entire
+  React/JSX component tree was absent from the graph.
+- **`.tsx` files that *were* discovered parsed as if they had no JSX.**
+  `TypeScriptParser` always requested the plain `"typescript"` tree-sitter
+  grammar, which has no JSX productions; a `.tsx` file now selects the `"tsx"`
+  grammar variant based on its extension.
+- `reindex_file()` and the on-demand CFG/DFG expansion path
+  (`on_demand_cfg`/`on_demand_dfg`) hardcoded `PythonParser` regardless of the
+  changed file's actual language, so re-indexing or expanding a non-Python
+  file after the initial build silently parsed it with the wrong grammar.
+  Both now dispatch by file extension, same as the initial build.
+- `ParallelIndexer.parse_directory()` had the same one-extension-per-language
+  bug independently: a `language="typescript"`/`"javascript"` run derived its
+  file-walk extension from a `{"typescript": "ts", ...}` map, so `.tsx`/`.jsx`
+  files were never discovered even though `.parse_files()` and the parser
+  dispatch handled them correctly. It now walks by the resolved parser's own
+  `extensions` list.
+
 ## [1.2.0] - 2026-08-13
 
 ### Added
@@ -111,6 +137,7 @@ All notable changes to CodeCortex are recorded here. The format follows
 - Initial release: parsing, code property graph, semantic indexing, embeddings,
   clustering, traversal, ranking, retrieval and the end-to-end pipeline.
 
+[1.2.1]: https://github.com/NafeesMansoor/CodeCortex/releases/tag/v1.2.1
 [1.2.0]: https://github.com/NafeesMansoor/CodeCortex/releases/tag/v1.2.0
 [1.1.0]: https://github.com/NafeesMansoor/CodeCortex/releases/tag/v1.1.0
 [1.0.1]: https://github.com/NafeesMansoor/CodeCortex/releases/tag/v1.0.1

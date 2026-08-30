@@ -316,13 +316,13 @@ immutable version rather than a branch.
 
 ```bash
 # Minimal (structural analysis only)
-pip install "codecortex @ git+https://github.com/NafeesMansoor/CodeCortex.git@v1.2.0"
+pip install "codecortex @ git+https://github.com/NafeesMansoor/CodeCortex.git@v1.2.1"
 
 # Or from a release artifact
-pip install ./codecortex-1.2.0-py3-none-any.whl
+pip install ./codecortex-1.2.1-py3-none-any.whl
 
 # With GPU-accelerated embeddings
-pip install "codecortex[embeddings] @ git+https://github.com/NafeesMansoor/CodeCortex.git@v1.2.0"
+pip install "codecortex[embeddings] @ git+https://github.com/NafeesMansoor/CodeCortex.git@v1.2.1"
 pip install torch --index-url https://download.pytorch.org/whl/cu121
 
 # Verify
@@ -349,7 +349,7 @@ CodeCortex follows Semantic Versioning, with the version defined once in
 `codecortex/version.py` and read from there by the packaging metadata.
 
 ```bash
-codecortex --version          # CodeCortex 1.2.0
+codecortex --version          # CodeCortex 1.2.1
 codecortex version --check    # is a newer release available?
 codecortex update             # back up, install, migrate, verify, roll back on failure
 codecortex update --rollback  # restore the previous version
@@ -376,7 +376,7 @@ codecortex --version    # or: pip show codecortex
 **Installed with pip:**
 
 ```bash
-pip install --upgrade "codecortex @ git+https://github.com/NafeesMansoor/CodeCortex.git@v1.2.0"
+pip install --upgrade "codecortex @ git+https://github.com/NafeesMansoor/CodeCortex.git@v1.2.1"
 ```
 
 **Installed as a git checkout** (`git clone` + `pip install -e .`):
@@ -384,14 +384,14 @@ pip install --upgrade "codecortex @ git+https://github.com/NafeesMansoor/CodeCor
 ```bash
 cd /path/to/CodeCortex
 git fetch --tags origin
-git checkout v1.2.0        # commit or stash local changes first
+git checkout v1.2.1        # commit or stash local changes first
 pip install -e .
 ```
 
 Then confirm, and re-index once:
 
 ```bash
-codecortex --version       # CodeCortex 1.2.0
+codecortex --version       # CodeCortex 1.2.1
 codecortex health          # expect Status: HEALTHY
 codecortex index .         # index caches from older versions are rebuilt
 ```

@@ -39,7 +39,10 @@ class TypeScriptParser(LanguageParser):
             from core.parsers.grammars import get_parser
 
             self._current_file_path = file_path
-            parser = get_parser("typescript")
+            # ".tsx" needs the "tsx" grammar variant — the plain "typescript"
+            # grammar has no JSX productions and turns JSX into ERROR nodes.
+            grammar = "tsx" if file_path.endswith(".tsx") else "typescript"
+            parser = get_parser(grammar)
             # Wrap once so every byte-offset slice below is O(1) and correct,
             # and parse the very bytes those offsets index into.
             source = SourceText(source)

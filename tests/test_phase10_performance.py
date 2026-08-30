@@ -132,6 +132,23 @@ class TestParallelIndexer:
         r2 = ParallelIndexer(max_workers=4).parse_directory(tmp_path)
         assert len(r1) == len(r2) == 5
 
+    def test_typescript_discovers_tsx_not_just_ts(self, tmp_path):
+        # parse_directory() used to derive the walk's extension from a
+        # language->single-extension map, so a "typescript" run only ever
+        # globbed ".ts" and silently missed every ".tsx" file.
+        (tmp_path / "a.ts").write_text("export function add(a: number) { return a }\n")
+        (tmp_path / "b.tsx").write_text("export function Widget() { return <div/> }\n")
+        indexer = ParallelIndexer(max_workers=2)
+        results = indexer.parse_directory(tmp_path, language="typescript")
+        assert {Path(r.file_path).name for r in results} == {"a.ts", "b.tsx"}
+
+    def test_javascript_discovers_jsx_not_just_js(self, tmp_path):
+        (tmp_path / "a.js").write_text("function add(a) { return a }\n")
+        (tmp_path / "b.jsx").write_text("function Widget() { return <div/> }\n")
+        indexer = ParallelIndexer(max_workers=2)
+        results = indexer.parse_directory(tmp_path, language="javascript")
+        assert {Path(r.file_path).name for r in results} == {"a.js", "b.jsx"}
+
 
 # ---------------------------------------------------------------------------
 # DeltaEmbedder
