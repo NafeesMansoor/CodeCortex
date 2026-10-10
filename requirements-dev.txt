@@ -2,7 +2,7 @@
 -r requirements.txt
 
 pytest>=8.0
-pytest-cov>=4.0
+pytest-cov>=7.1.0
 # Pinned to a minor: ruff's formatter output changes between minors (0.16 began
 # formatting Python blocks inside Markdown), which turns `--check` in CI into a
 # failure nobody changed anything to cause.
