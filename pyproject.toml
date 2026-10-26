@@ -23,17 +23,27 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    # Both bounds are load-bearing — see requirements.txt. In short: 1.14
-    # changed the parser API, and tree-sitter 0.26.0 segfaults on start_point.
+    # Both bounds are load-bearing — see requirements.txt. In short: the
+    # grammar wheels need ABI 15, and tree-sitter 0.26.0 segfaults on start_point.
     "tree-sitter>=0.25,<0.26",
-    "tree-sitter-language-pack>=1.14,<2",
     # Grammar wheels — parsing must not depend on a runtime download.
     "tree-sitter-python>=0.23,<1.0",
     "tree-sitter-javascript>=0.23,<1.0",
     "tree-sitter-typescript>=0.23,<1.0",
     "tree-sitter-php>=0.23,<1.0",
+    "tree-sitter-go>=0.23,<1.0",
+    "tree-sitter-rust>=0.23,<1.0",
+    "tree-sitter-java>=0.23,<1.0",
+    "tree-sitter-c-sharp>=0.23,<1.0",
+    "tree-sitter-c>=0.23,<1.0",
+    "tree-sitter-cpp>=0.23,<1.0",
+    "tree-sitter-ruby>=0.23,<1.0",
+    "tree-sitter-kotlin>=1.1,<2",
+    "tree-sitter-swift>=0.7,<1.0",
+    "tree-sitter-scala>=0.23,<1.0",
+    "tree-sitter-lua>=0.5,<1.0",
+    "tree-sitter-bash>=0.23,<1.0",
     "networkx>=3.1",
-    "faiss-cpu>=1.7",
     "numpy>=1.24",
     "pyyaml>=6.0",
     # CA bundle for update checks — see requirements.txt.
@@ -42,6 +52,8 @@ dependencies = [
 
 [project.optional-dependencies]
 embeddings = [
+    # Retrieval falls back to exact search without it; worth it past ~10k nodes.
+    "faiss-cpu>=1.7",
     "sentence-transformers>=2.6",
     "torch>=2.0",
 ]
@@ -76,23 +88,13 @@ Documentation = "https://github.com/NafeesMansoor/codecortex#readme"
 version = { attr = "codecortex.version.__version__" }
 
 [tool.setuptools.packages.find]
-include = [
-    "codecortex*",
-    "core*",
-    "graph*",
-    "indexing*",
-    "embeddings*",
-    "clustering*",
-    "traversal*",
-    "ranking*",
-    "retrieval*",
-    "pipeline*",
-    "performance*",
-    "visualization*",
-]
+# Everything lives under the one `codecortex` package, so installing it adds a
+# single top-level name to an environment (before 2.0 it added twelve,
+# including generic ones like `core` and `graph`).
+include = ["codecortex*"]
 
 [tool.setuptools.package-data]
-visualization = ["static/*"]
+"codecortex.visualization" = ["static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

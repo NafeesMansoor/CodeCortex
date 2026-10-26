@@ -9,8 +9,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.parsers.python_parser import PythonParser
-from core.source_text import SourceText, byte_slice, node_text
+from codecortex.core.parsers.python_parser import PythonParser
+from codecortex.core.source_text import SourceText, byte_slice, node_text
 
 # Three em-dashes and an arrow in the docstring push every later byte offset
 # eight positions past the matching character offset.

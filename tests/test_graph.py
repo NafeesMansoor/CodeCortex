@@ -5,8 +5,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.types import EdgeKind, NodeKind, SourceRange
-from graph import CPGBuilder, CPGEdge, CPGNode, GraphStore
+from codecortex.core.types import EdgeKind, NodeKind, SourceRange
+from codecortex.graph import CPGBuilder, CPGEdge, CPGNode, GraphStore
 
 
 def _make_store() -> GraphStore:
@@ -146,7 +146,7 @@ class TestGraphStore:
 
 class TestCPGBuilder:
     def test_ingest_parse_result(self):
-        from core.types import NodeInfo, ParseResult
+        from codecortex.core.types import NodeInfo, ParseResult
 
         store = _make_store()
         builder = CPGBuilder(store)
@@ -173,7 +173,7 @@ class TestCPGBuilder:
         assert store.get_node("hello") is not None
 
     def test_ingest_skips_errors(self):
-        from core.types import ParseResult
+        from codecortex.core.types import ParseResult
 
         store = _make_store()
         builder = CPGBuilder(store)
@@ -186,7 +186,7 @@ class TestCPGBuilder:
         assert store.node_count() == 0
 
     def test_remove_file(self):
-        from core.types import NodeInfo, ParseResult
+        from codecortex.core.types import NodeInfo, ParseResult
 
         store = _make_store()
         builder = CPGBuilder(store)

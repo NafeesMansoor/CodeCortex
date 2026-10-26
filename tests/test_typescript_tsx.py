@@ -11,9 +11,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.parsers.typescript_parser import TypeScriptParser
-from core.types import NodeKind
-from pipeline.context_builder import CodeCortexPipeline, PipelineConfig
+from codecortex.core.parsers.typescript_parser import TypeScriptParser
+from codecortex.core.types import NodeKind
+from codecortex.pipeline.context_builder import CodeCortexPipeline, PipelineConfig
 
 TSX_SOURCE = """
 export function Widget({ label }: { label: string }) {

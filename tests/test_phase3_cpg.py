@@ -5,13 +5,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.parsers import PythonParser
-from core.types import EdgeKind, NodeKind
-from graph.cfg_builder import CFGBuilder
-from graph.cpg_builder import CPGBuilder
-from graph.dfg_builder import DFGBuilder
-from graph.endpoint_detector import EndpointDetector, _extract_http_method, _extract_route_path
-from graph.graph_store import GraphStore
+from codecortex.core.parsers import PythonParser
+from codecortex.core.types import EdgeKind, NodeKind
+from codecortex.graph.cfg_builder import CFGBuilder
+from codecortex.graph.cpg_builder import CPGBuilder
+from codecortex.graph.dfg_builder import DFGBuilder
+from codecortex.graph.endpoint_detector import (
+    EndpointDetector,
+    _extract_http_method,
+    _extract_route_path,
+)
+from codecortex.graph.graph_store import GraphStore
 
 # ---------------------------------------------------------------------------
 # NodeKind / EdgeKind taxonomy
@@ -89,7 +93,7 @@ class TestTestsEdges:
 
 class TestCFGBuilder:
     def _tree_and_source(self, src: str):
-        from core.parsers.grammars import get_parser
+        from codecortex.core.parsers.grammars import get_parser
 
         parser = get_parser("python")
         # tree-sitter parses bytes; the offsets it reports index into them.
@@ -136,7 +140,7 @@ class TestCFGBuilder:
 
 class TestDFGBuilder:
     def _tree_and_source(self, src: str):
-        from core.parsers.grammars import get_parser
+        from codecortex.core.parsers.grammars import get_parser
 
         parser = get_parser("python")
         # tree-sitter parses bytes; the offsets it reports index into them.
@@ -172,7 +176,7 @@ class TestDFGBuilder:
 
 class TestEndpointDetector:
     def _tree(self, src: str, lang: str = "python"):
-        from core.parsers.grammars import get_parser
+        from codecortex.core.parsers.grammars import get_parser
 
         parser = get_parser(lang)
         # tree-sitter parses bytes; the offsets it reports index into them.

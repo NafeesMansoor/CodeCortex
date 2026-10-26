@@ -3,9 +3,8 @@
 
 # Core parsing.
 # Both bounds are load-bearing:
-#   lower — language-pack 1.14 replaced its bundled parser binding with the
-#     upstream tree_sitter one (node accessors became properties, parse() takes
-#     bytes). The parsers target that API.
+#   lower — the parsers target the 0.25 API (node accessors are properties,
+#     parse() takes bytes), and the grammar wheels below need ABI 15.
 #   upper — tree-sitter 0.26.0 segfaults when many Node.start_point /
 #     Node.end_point objects are created and later collected. Reproducible with
 #     the binding alone, no CodeCortex code involved; 0.26.0 is the newest
@@ -13,22 +12,33 @@
 #     Lift this only after verifying `walk(root) -> n.start_point.row` over a
 #     few dozen files exits cleanly.
 tree-sitter>=0.25,<0.26
-tree-sitter-language-pack>=1.14,<2
 
-# Grammar wheels for the supported stack. These ship the compiled grammar, so
-# parsing never touches the network — the language pack downloads its grammars
-# on first use, which fails on an offline install and on any HTTP hiccup.
+# Grammar wheels for every supported language. These ship the compiled grammar, so
+# parsing never touches the network.
 tree-sitter-python>=0.23,<1.0
 tree-sitter-javascript>=0.23,<1.0
 tree-sitter-typescript>=0.23,<1.0
 tree-sitter-php>=0.23,<1.0
+tree-sitter-go>=0.23,<1.0
+tree-sitter-rust>=0.23,<1.0
+tree-sitter-java>=0.23,<1.0
+tree-sitter-c-sharp>=0.23,<1.0
+tree-sitter-c>=0.23,<1.0
+tree-sitter-cpp>=0.23,<1.0
+tree-sitter-ruby>=0.23,<1.0
+tree-sitter-kotlin>=1.1,<2
+tree-sitter-swift>=0.7,<1.0
+tree-sitter-scala>=0.23,<1.0
+tree-sitter-lua>=0.5,<1.0
+tree-sitter-bash>=0.23,<1.0
 
 # Graph & numerical
 networkx>=3.1
 numpy>=1.24
 
-# Vector search
-faiss-cpu>=1.7
+# Vector search (optional): retrieval falls back to exact search without it.
+# Installed by the `embeddings` extra.
+# faiss-cpu>=1.7
 
 # Configuration
 pyyaml>=6.0

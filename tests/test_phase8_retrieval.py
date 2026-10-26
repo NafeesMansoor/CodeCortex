@@ -5,13 +5,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.types import EdgeKind, NodeKind
-from embeddings.embedding_store import EmbeddingStore
-from embeddings.provider_factory import StubEmbeddingProvider
-from graph.graph_store import GraphStore
-from graph.schema import CPGEdge, CPGNode
-from ranking.centrality_engine import CentralityEngine
-from retrieval.retrieval_layer import (
+from codecortex.core.types import EdgeKind, NodeKind
+from codecortex.embeddings.embedding_store import EmbeddingStore
+from codecortex.embeddings.provider_factory import StubEmbeddingProvider
+from codecortex.graph.graph_store import GraphStore
+from codecortex.graph.schema import CPGEdge, CPGNode
+from codecortex.ranking.centrality_engine import CentralityEngine
+from codecortex.retrieval.retrieval_layer import (
     RetrievalConfig,
     RetrievalLayer,
     RetrievalResult,

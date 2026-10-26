@@ -1,14 +1,17 @@
 """CodeCortex unified CLI entry point.
 
 Usage:
-    codecortex index   <dir> [options]     — build semantic graph index
+    codecortex index   <dir> [options]     — build and save the semantic graph index
     codecortex query   --query TEXT [opts] — query an indexed codebase
+    codecortex explain SYMBOL [opts]       — one symbol's callers, callees, bases
+    codecortex install [--platform P]      — tell this project's AI assistant to use it
+    codecortex uninstall [--purge]         — remove that setup
     codecortex visualize <dir> [options]   — launch interactive graph explorer
     codecortex version [--check]           — show version / check for updates
     codecortex update                      — update this installation
     codecortex health                      — verify this installation
 
-Aliases: cx index / cx query / cx visualize
+Aliases: cx index / cx query / cx explain / cx visualize
 """
 
 from __future__ import annotations
@@ -52,8 +55,11 @@ _USAGE = f"""\
 CodeCortex v{__version__} — Adaptive Semantic Intelligence Engine
 
 Usage:
-  codecortex index     <dir> [options]       Build semantic graph index
+  codecortex index     <dir> [options]       Build the graph and save it to .codecortex/
   codecortex query     --query TEXT [opts]   Query an indexed codebase
+  codecortex explain   SYMBOL [opts]         One symbol's definition, callers, callees
+  codecortex install   [--platform P]        Set up this project's AI assistant to use it
+  codecortex uninstall [--purge]             Remove that setup (and the saved index)
   codecortex visualize <dir> [options]       Launch interactive graph explorer
   codecortex version   [--check]             Show version, or check for updates
   codecortex update    [--check] [--yes]     Update this installation
@@ -62,13 +68,17 @@ Usage:
 Options (per subcommand):
   codecortex index --help
   codecortex query --help
+  codecortex explain --help
+  codecortex install --help
   codecortex visualize --help
 
 Examples:
+  codecortex install
   codecortex index .
   codecortex index . --mode cpg --enable-embeddings --enable-clustering
   codecortex query --query "authentication middleware" --target .
   codecortex query --impact UserService.login --target .
+  codecortex explain UserService.login
   codecortex visualize .
   codecortex visualize /path/to/repo --port 8080
   codecortex version --check
@@ -113,8 +123,28 @@ def main(argv=None) -> int:
 
         return _main(rest)
 
+    if subcommand == "explain":
+        from codecortex.explain import main as _main
+
+        return _main(rest)
+
+    if subcommand == "install":
+        from codecortex.integrate import install_main
+
+        return install_main(rest)
+
+    if subcommand == "hook-guard":
+        from codecortex.hook import main as _main
+
+        return _main(rest)
+
+    if subcommand == "uninstall":
+        from codecortex.integrate import uninstall_main
+
+        return uninstall_main(rest)
+
     if subcommand in ("visualize", "viz"):
-        from visualization.server import main as _main
+        from codecortex.visualization.server import main as _main
 
         return _main(rest)
 

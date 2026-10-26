@@ -25,7 +25,7 @@ It ingests multi-language source code and produces a compressed, semantically-en
 ## Core Architecture
 
 ```
-Source Files (Python · JavaScript · TypeScript · PHP)
+Source Files (16 languages — see Supported Languages)
         │
         ▼
 ┌───────────────────────────────────┐
@@ -66,6 +66,33 @@ Source Files (Python · JavaScript · TypeScript · PHP)
 │   context      │  │  Zero pipeline impact │
 └────────────────┘  └──────────────────────┘
 ```
+
+### Supported Languages
+
+Every grammar ships as a wheel, so parsing works offline. `--languages`
+accepts a language name, alias or extension (`py`, `rust`, `cs`, `tsx`).
+
+| Language | Extensions | Extracted |
+|---|---|---|
+| Python | `.py` | functions, methods, classes, calls, imports, bases, tests, CFG/DFG |
+| JavaScript | `.js .jsx .mjs .cjs` | functions (incl. arrow functions bound to names), classes, methods, calls, `import`/`require`/`import()`, `extends` |
+| TypeScript | `.ts .tsx .mts .cts` | as JavaScript, plus interfaces, enums, type aliases, `implements` |
+| PHP | `.php` | classes, interfaces, traits, enums, methods, functions, calls (incl. `$this->m()`, `A::m()`), `use`/grouped `use`/`require`, `extends`/`implements`/trait use |
+| Go | `.go` | functions, receiver methods, structs, interfaces, calls, imports, `Test*` in `_test.go` |
+| Rust | `.rs` | functions, `impl` methods, structs, enums, traits, calls, `use`, `impl Trait for`, `#[test]` |
+| Java | `.java` | classes, records, interfaces, enums, methods, constructors, calls, imports, `extends`/`implements`, `@Test` |
+| C# | `.cs` | classes, records, structs, interfaces, enums, methods, calls, `using`, base lists, `[Fact]`/`[Test]` |
+| C | `.c .h` | functions, structs, unions, enums, calls, `#include` |
+| C++ | `.cpp .cc .cxx .hpp .hh .hxx` | as C, plus classes, out-of-line `Class::method`, base classes |
+| Ruby | `.rb .rake` | classes, modules, methods, calls, `require`, superclasses |
+| Kotlin | `.kt .kts` | classes, objects, interfaces, enums, functions, calls, imports, supertypes |
+| Swift | `.swift` | classes, structs, enums, protocols, extensions, functions, calls, imports, inheritance |
+| Scala | `.scala .sc` | classes, objects, traits, functions, calls, imports, `extends` |
+| Lua | `.lua` | functions, table functions (`M.f`, `M:g`), calls, `require` |
+| Bash | `.sh .bash` | functions, commands, `source` |
+
+CFG/DFG passes are tuned for Python, JavaScript/TypeScript and PHP; other
+languages get the structural graph (definitions, calls, imports, inheritance).
 
 ### Key Design Decisions
 
@@ -118,7 +145,9 @@ codecortex visualize /path/to/repo
 ```
 
 ### Incremental Indexing
-Reindex a single changed file without rebuilding the full graph.
+`codecortex query` and `explain` load the saved index from `.codecortex/` and
+re-parse only files that changed since it was written. From Python, reindex a
+single changed file without rebuilding the full graph:
 
 ```python
 pipeline.reindex_file("/path/to/repo/auth/service.py")
@@ -185,81 +214,87 @@ codecortex visualize . --languages py ts
 ```
 codecortex/                 Main package + unified CLI
   __init__.py               Public API surface
-  cli.py                    Unified CLI (index / query / visualize)
+  cli.py                    Unified CLI (index / query / explain / install / visualize)
   config.py                 YAML config loader
   index.py                  Index subcommand
   query.py                  Query subcommand
+  explain.py                Explain subcommand
+  integrate.py              install / uninstall for AI assistants
+  hook.py                   Claude Code PreToolUse hook (hook-guard)
 
-core/                       Shared types and parser framework
-  types.py                  NodeKind, EdgeKind, NodeInfo, EdgeInfo
-  parser_framework.py       LanguageParser ABC + ParserRegistry
-  parsers/                  Language-specific parsers
-    python_parser.py
-    javascript_parser.py
-    typescript_parser.py
-    php_parser.py
+  core/                     Shared types and parser framework
+    types.py                NodeKind, EdgeKind, NodeInfo, EdgeInfo
+    parser_framework.py     LanguageParser ABC + ParserRegistry
+    parsers/                Language parsers (16 languages)
+      registry.py           The one list of parsers
+      treesitter_parser.py  Table-driven tree-sitter parser
+      languages.py          Go, Rust, Java, C#, C, C++, Ruby, Kotlin, …
+      python_parser.py      javascript_parser.py  typescript_parser.py  php_parser.py
 
-graph/                      Code Property Graph
-  schema.py                 CPGNode, CPGEdge
-  graph_store.py            SQLite-backed persistent store
-  cpg_builder.py            AST → CPG ingestion
-  cfg_builder.py            Control Flow Graph
-  dfg_builder.py            Data Flow Graph
-  endpoint_detector.py      HTTP API / route detection
-  graph_pruner.py           Semantic node filtering (60–80% reduction)
+  graph/                    Code Property Graph
+    schema.py               CPGNode, CPGEdge
+    graph_store.py          SQLite-backed persistent store
+    cpg_builder.py          AST → CPG ingestion
+    cfg_builder.py          Control Flow Graph
+    dfg_builder.py          Data Flow Graph
+    endpoint_detector.py    HTTP API / route detection
+    graph_pruner.py         Semantic node filtering (60–80% reduction)
 
-indexing/                   Semantic symbol indexing
-  semantic_index.py         In-memory symbol lookup
-  symbol_resolver.py        Cross-file name resolution
-  symbol_cache.py           SQLite persistent symbol table
-  reference_graph.py        Cross-file occurrence store
-  jedi_provider.py          Python semantic analysis (Jedi)
-  lsp_provider.py           JSON-RPC LSP client
-  scip_provider.py          SCIP index reader
-  graph_enricher.py         Upgrades unresolved CALLS edges
+  indexing/                 Semantic symbol indexing
+    semantic_index.py       In-memory symbol lookup
+    symbol_resolver.py      Cross-file name resolution
+    symbol_cache.py         SQLite persistent symbol table
+    reference_graph.py      Cross-file occurrence store
+    jedi_provider.py        Python semantic analysis (Jedi)
+    lsp_provider.py         JSON-RPC LSP client
+    scip_provider.py        SCIP index reader
+    graph_enricher.py       Upgrades unresolved CALLS edges
 
-embeddings/                 Vector embedding layer
-  code_embedder.py          Code → text normalization + rich context
-  embedding_pipeline.py     CPG → FAISS index (batch, incremental)
-  embedding_store.py        FAISS wrapper with cosine similarity
-  provider_factory.py       stub | local | openai provider selection
+  embeddings/               Vector embedding layer
+    code_embedder.py        Code → text normalization + rich context
+    embedding_pipeline.py   CPG → FAISS index (batch, incremental)
+    embedding_store.py      FAISS wrapper with cosine similarity
+    provider_factory.py     lexical | local | openai | stub providers
 
-clustering/                 Semantic community detection
-  semantic_clusters.py      HDBSCAN + KMeans fallback
-  louvain_clusterer.py      Graph-based Louvain community detection
-  cluster_labeler.py        Token frequency + module dominance labels
-  cluster_quality.py        Silhouette, cohesion, separation metrics
-  cluster_store.py          SQLite cluster persistence
+  clustering/               Semantic community detection
+    semantic_clusters.py    HDBSCAN + KMeans fallback
+    louvain_clusterer.py    Graph-based Louvain community detection
+    cluster_labeler.py      Token frequency + module dominance labels
+    cluster_quality.py      Silhouette, cohesion, separation metrics
+    cluster_store.py        SQLite cluster persistence
 
-traversal/                  Graph traversal engine
-  traversal_engine.py       AdjacencyCache, BFS, DFS, TaintFlow
-  beam_traversal.py         Beam search with semantic scoring
-  query_optimizer.py        Query plan optimization
+  traversal/                Graph traversal engine
+    traversal_engine.py     AdjacencyCache, BFS, DFS, TaintFlow
+    beam_traversal.py       Beam search with semantic scoring
+    query_optimizer.py      Query plan optimization
 
-ranking/                    Centrality and ranking
-  centrality_engine.py      PageRank, betweenness, closeness, eigenvector
-  ppr_engine.py             Personalized PageRank (query-relative ranking)
+  ranking/                  Centrality and ranking
+    centrality_engine.py    PageRank, betweenness, closeness, eigenvector
+    ppr_engine.py           Personalized PageRank (query-relative ranking)
 
-retrieval/                  Retrieval orchestration
-  retrieval_layer.py        Hybrid semantic + structural retrieval
+  retrieval/                Retrieval orchestration
+    retrieval_layer.py      Hybrid semantic + structural retrieval
 
-pipeline/                   End-to-end orchestration
-  context_builder.py        CodeCortexPipeline (build → query → impact)
+  pipeline/                 End-to-end orchestration
+    context_builder.py      CodeCortexPipeline (build → query → impact)
+    state.py                Saved per-project index (.codecortex/)
 
-performance/                Incremental performance optimizations
-  graph_snapshot.py         JSON graph persistence + mtime delta
-  parallel_indexer.py       ThreadPoolExecutor multi-file indexing
-  delta_embedder.py         Mtime-driven incremental re-embedding
+  performance/              Incremental performance optimizations
+    graph_snapshot.py       JSON graph persistence + mtime delta
+    parallel_indexer.py     ThreadPoolExecutor multi-file indexing
+    delta_embedder.py       Mtime-driven incremental re-embedding
 
-visualization/              Interactive graph explorer (human-facing)
-  __init__.py
-  graph_exporter.py         Pipeline state → visualization JSON
-  server.py                 Local HTTP server + browser launcher
-  static/
-    index.html              Full interactive graph UI (Cytoscape.js)
+  visualization/            Interactive graph explorer (human-facing)
+    __init__.py
+    graph_exporter.py       Pipeline state → visualization JSON
+    server.py               Local HTTP server + browser launcher
+    static/
+      index.html            Full interactive graph UI (Cytoscape.js)
 
-tests/                      Test suite (223 tests)
+tests/                      Test suite
   test_phase1_core.py       … through test_phase10_performance.py
+  test_languages.py         Per-language extraction
+  test_saved_index.py       Saved index, install, hook
   benchmarks/               Performance benchmarks
     benchmark_runner.py     Composite score benchmark
     bench_v01.py            Stage-wise evaluation
@@ -267,6 +302,53 @@ tests/                      Test suite (223 tests)
 
 codecortex.yaml             Default configuration
 ```
+
+---
+
+## Use with Your AI Assistant
+
+CodeCortex is meant to be asked, not loaded: build the graph once, and the
+assistant queries it when a question needs it instead of grepping and
+reading files.
+
+```bash
+pipx install "codecortex @ git+https://github.com/NafeesMansoor/CodeCortex.git@v2.0.0"
+
+cd your-project
+codecortex install          # writes the assistant instructions (Claude Code by default)
+codecortex index .          # builds the graph once, saved to .codecortex/
+```
+
+`codecortex install` adds a short, marked `## codecortex` block to `CLAUDE.md`,
+a `codecortex` skill under `.claude/skills/`, and a `PreToolUse` hook in
+`.claude/settings.json`. When the project has a saved index and the assistant
+is about to grep or read a source file, the hook adds a one-line note that
+`codecortex query` / `explain` can answer more cheaply. It never blocks a
+tool, speaks at most once per session for searches and once for reads, and
+takes ~0.1 s. Skip it with `--no-hooks`. Use `--platform agents`
+(AGENTS.md: Codex, OpenCode, Amp, Copilot), `--platform cursor`,
+`--platform gemini`, or `--platform all`. The block tells the assistant to:
+
+| When | Run |
+|---|---|
+| Before grepping or reading files for a codebase question | `codecortex query --query "<question>"` |
+| To see one symbol's definition, callers, callees and base types | `codecortex explain <Symbol>` |
+| Before changing a symbol | `codecortex query --impact <Qualified.name>` |
+
+Each call reuses `.codecortex/` (graph, ranking, clusters and search vectors)
+and re-parses and re-embeds only files whose size or mtime changed, so there
+is nothing to keep running and nothing to remember to refresh. On a 636-file
+repository a query or `explain` takes about a second. `codecortex index .` rebuilds everything (centrality and clusters are
+reused across incremental refreshes and recomputed by a full index).
+`.codecortex/` ignores itself, so it never appears in `git status`.
+
+`codecortex uninstall` removes exactly the block and files it added
+(`--purge` also deletes `.codecortex/`).
+
+The default `lexical` embedding backend matches query words against symbol
+names, kinds and modules with no model download; set `embedding_backend:
+local` in `codecortex.yaml` (with the `embeddings` extra) for model-based
+semantic search.
 
 ---
 
@@ -298,13 +380,10 @@ pip install -r requirements.txt
 # 4. Install in editable mode
 pip install -e .
 
-# 5. Install tree-sitter-language-pack (required for PHP/JS/TS parsing)
-pip install tree-sitter-language-pack
-
-# 6. Optional: real embeddings + full semantic stack
+# 5. Optional: model embeddings + full semantic stack
 pip install -e ".[all]"
 
-# 7. Verify
+# 6. Verify
 pytest tests/ --ignore=tests/benchmarks
 codecortex --help
 ```
@@ -314,20 +393,29 @@ codecortex --help
 CodeCortex is distributed through GitHub Releases; install a specific,
 immutable version rather than a branch.
 
+**For the CLI, install it as a tool.** `pipx` (or `uv tool`) gives CodeCortex
+its own virtualenv and puts only the `codecortex` command on your `PATH`, so
+its dependencies never mix with a project's. To use the Python API, `pip
+install` it into your application's environment instead; everything lives
+under the single `codecortex` package, so it adds no other top-level names.
+
 ```bash
-# Minimal (structural analysis only)
-pip install "codecortex @ git+https://github.com/NafeesMansoor/CodeCortex.git@v1.2.1"
+# Recommended: isolated tool install (~100 MB, all 16 grammars included)
+pipx install "codecortex @ git+https://github.com/NafeesMansoor/CodeCortex.git@v2.0.0"
+# or: uv tool install "codecortex @ git+https://github.com/NafeesMansoor/CodeCortex.git@v2.0.0"
+
+# Optional model embeddings (sentence-transformers, torch, faiss) — large
+pipx install "codecortex[embeddings] @ git+https://github.com/NafeesMansoor/CodeCortex.git@v2.0.0"
 
 # Or from a release artifact
-pip install ./codecortex-1.2.1-py3-none-any.whl
-
-# With GPU-accelerated embeddings
-pip install "codecortex[embeddings] @ git+https://github.com/NafeesMansoor/CodeCortex.git@v1.2.1"
-pip install torch --index-url https://download.pytorch.org/whl/cu121
+pipx install ./codecortex-2.0.0-py3-none-any.whl
 
 # Verify
 codecortex health
 ```
+
+To upgrade a tool install, re-run the install command with the new tag and
+`--force` (`pipx install --force …` / `uv tool install --force …`).
 
 ### Environment Variables
 
@@ -349,7 +437,7 @@ CodeCortex follows Semantic Versioning, with the version defined once in
 `codecortex/version.py` and read from there by the packaging metadata.
 
 ```bash
-codecortex --version          # CodeCortex 1.2.1
+codecortex --version          # CodeCortex 2.0.0
 codecortex version --check    # is a newer release available?
 codecortex update             # back up, install, migrate, verify, roll back on failure
 codecortex update --rollback  # restore the previous version
@@ -376,7 +464,7 @@ codecortex --version    # or: pip show codecortex
 **Installed with pip:**
 
 ```bash
-pip install --upgrade "codecortex @ git+https://github.com/NafeesMansoor/CodeCortex.git@v1.2.1"
+pip install --upgrade "codecortex @ git+https://github.com/NafeesMansoor/CodeCortex.git@v2.0.0"
 ```
 
 **Installed as a git checkout** (`git clone` + `pip install -e .`):
@@ -384,14 +472,14 @@ pip install --upgrade "codecortex @ git+https://github.com/NafeesMansoor/CodeCor
 ```bash
 cd /path/to/CodeCortex
 git fetch --tags origin
-git checkout v1.2.1        # commit or stash local changes first
+git checkout v2.0.0        # commit or stash local changes first
 pip install -e .
 ```
 
 Then confirm, and re-index once:
 
 ```bash
-codecortex --version       # CodeCortex 1.2.1
+codecortex --version       # CodeCortex 2.0.0
 codecortex health          # expect Status: HEALTHY
 codecortex index .         # index caches from older versions are rebuilt
 ```
@@ -430,8 +518,11 @@ codecortex index . --mode cpg --enable-embeddings --enable-clustering
 # Hybrid: Tier-1 at build time, CFG/DFG on demand
 codecortex index . --on-demand-cfg --on-demand-dfg
 
-# Save snapshot for fast reload
-codecortex index . --save-snapshot .codecortex/graph.json
+# The index is saved to .codecortex/ for later queries; skip that with
+codecortex index . --no-save
+
+# Also export a JSON snapshot
+codecortex index . --save-snapshot snapshots/graph.json
 
 # Limit languages
 codecortex index . --languages py ts
@@ -455,6 +546,12 @@ codecortex query --query "authentication middleware" --target .
 
 # Impact analysis
 codecortex query --impact UserService.authenticate --target .
+
+# One symbol: definition, callers, callees, base types
+codecortex explain UserService.authenticate --target .
+
+# Ignore the saved index and rebuild it
+codecortex query --query "authentication middleware" --rebuild
 
 # JSON output
 codecortex query --query "HTTP routing" --json --target .
@@ -517,7 +614,7 @@ top = pipeline.top_nodes(n=20)
 pipeline.reindex_file("/path/to/repo/auth/service.py")
 
 # Export for visualization
-from visualization import export_pipeline
+from codecortex.visualization import export_pipeline
 
 graph_json = export_pipeline(pipeline, project_name="my-repo")
 ```
@@ -726,23 +823,35 @@ Create a virtualenv first: `python3 -m venv .venv && source .venv/bin/activate`,
 
 ### Add a Language Parser
 
+Most languages need no parsing code: subclass `TreeSitterParser`, name the
+grammar node types, and add the class to `PARSER_CLASSES` in
+`core/parsers/registry.py`. The pipeline, the parallel indexer and the
+`--languages` filter all resolve parsers there.
+
 ```python
-from core.parser_framework import LanguageParser
-from core.types import ParseResult
+from codecortex.core.parsers.treesitter_parser import TreeSitterParser
+from codecortex.core.types import EdgeKind, NodeKind
 
 
-class RustParser(LanguageParser):
-    @property
-    def language(self) -> str:
-        return "rust"
-
-    def parse(self, source: str, file_path: str) -> ParseResult: ...
+class ZigParser(TreeSitterParser):
+    language = "zig"
+    extensions = [".zig"]
+    grammar = "zig"  # add the grammar wheel to core/parsers/grammars.py
+    function_types = frozenset({"function_declaration"})
+    type_kinds = {"struct_declaration": NodeKind.STRUCT}
+    call_types = frozenset({"call_expression"})
+    import_types = frozenset({"builtin_function"})
+    base_clauses: dict[str, EdgeKind] = {}
 ```
+
+Override a hook (`container`, `name_of`, `owner_of`, `callee_of`,
+`imports_of`, `bases_of`, `is_test`) only where the grammar does not fit the
+tables, and add a case to `tests/test_languages.py`.
 
 ### Add an Embedding Provider
 
 ```python
-from embeddings.provider_factory import EmbeddingProvider
+from codecortex.embeddings.provider_factory import EmbeddingProvider
 import numpy as np
 
 
@@ -753,7 +862,7 @@ class MyProvider(EmbeddingProvider):
 ### Export Graph Programmatically
 
 ```python
-from visualization import export_pipeline
+from codecortex.visualization import export_pipeline
 import json
 
 pipeline = CodeCortexPipeline.from_directory(".")

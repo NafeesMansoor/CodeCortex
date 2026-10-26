@@ -21,6 +21,26 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 
+def _relative(path: str, root: Path) -> str:
+    try:
+        return str(Path(path).relative_to(root))
+    except ValueError:
+        return path
+
+
+def describe_open(opened) -> str:
+    """One stderr line saying where the index came from."""
+    if opened.source == "built":
+        saved = " and saved to .codecortex/" if opened.saved else ""
+        return f"Index built{saved}.\n"
+    if opened.reparsed or opened.removed:
+        return (
+            f"Using saved index; re-parsed {opened.reparsed} changed file(s), "
+            f"dropped {opened.removed} deleted.\n"
+        )
+    return "Using saved index.\n"
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m codecortex.query",
@@ -91,7 +111,7 @@ def main(argv=None) -> int:
         nargs="+",
         metavar="LANG",
         default=None,
-        help="Limit to: py js ts php",
+        help="Limit to languages, by name or extension (e.g. py ts go rust java)",
     )
     parser.add_argument(
         "--exclude",
@@ -114,6 +134,16 @@ def main(argv=None) -> int:
         "--json",
         action="store_true",
         help="Output results as JSON instead of plain text",
+    )
+    parser.add_argument(
+        "--rebuild",
+        action="store_true",
+        help="Ignore the saved index in <target>/.codecortex/ and rebuild it",
+    )
+    parser.add_argument(
+        "--no-save",
+        action="store_true",
+        help="Do not save a newly built index for later queries",
     )
     parser.add_argument("--quiet", action="store_true", help="Suppress progress output")
 
@@ -150,21 +180,27 @@ def main(argv=None) -> int:
 
     pipeline_cfg = cc_config.to_pipeline_config()
 
-    if not args.quiet:
+    from codecortex.cli import make_progress_printer
+    from codecortex.pipeline.state import has_saved_index, open_pipeline
+
+    if not args.quiet and (args.rebuild or not has_saved_index(target)):
         print(f"\nBuilding index for {target} …", file=sys.stderr)
 
-    from codecortex.cli import make_progress_printer
-    from pipeline.context_builder import CodeCortexPipeline
-
-    pipeline = CodeCortexPipeline.from_directory(
+    pipeline, opened = open_pipeline(
         target,
         config=pipeline_cfg,
         languages=args.languages,
         on_progress=make_progress_printer(args.quiet),
+        rebuild=args.rebuild,
+        save=not args.no_save,
+        config_overrides={
+            "retrieval_top_k": pipeline_cfg.retrieval_top_k,
+            "retrieval_token_budget": pipeline_cfg.retrieval_token_budget,
+        },
     )
 
     if not args.quiet:
-        print("Index ready.\n", file=sys.stderr)
+        print(describe_open(opened), file=sys.stderr)
 
     # ------------------------------------------------------------------
     # Impact mode
@@ -177,11 +213,12 @@ def main(argv=None) -> int:
             print(json.dumps(summary.to_dict(), indent=2))
         else:
             d = summary.to_dict()
+            files = [_relative(f, target) for f in d["affected_files"]]
             print(f"Impact: {d['root']}")
             print(f"  Direct callers  : {', '.join(d['direct_callers']) or '(none)'}")
-            print(f"  Affected files  : {', '.join(d['affected_files']) or '(none)'}")
+            print(f"  Affected files  : {', '.join(files) or '(none)'}")
             print(f"  Affected tests  : {', '.join(d['affected_tests']) or '(none)'}")
-            print(f"  Transitive nodes: {len(d['transitive_affected'])}")
+            print(f"  Transitive nodes: {d['transitive_count']}")
         return 0
 
     # ------------------------------------------------------------------

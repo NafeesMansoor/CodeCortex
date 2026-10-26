@@ -7,15 +7,15 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.types import EdgeKind, NodeKind
-from embeddings.embedding_pipeline import EmbeddingPipeline
-from embeddings.provider_factory import EmbeddingConfig
-from graph.graph_store import GraphStore
-from graph.schema import CPGEdge, CPGNode
-from performance.delta_embedder import DeltaEmbedder
-from performance.graph_snapshot import GraphSnapshot
-from performance.parallel_indexer import ParallelIndexer
-from pipeline.context_builder import CodeCortexPipeline, PipelineConfig
+from codecortex.core.types import EdgeKind, NodeKind
+from codecortex.embeddings.embedding_pipeline import EmbeddingPipeline
+from codecortex.embeddings.provider_factory import EmbeddingConfig
+from codecortex.graph.graph_store import GraphStore
+from codecortex.graph.schema import CPGEdge, CPGNode
+from codecortex.performance.delta_embedder import DeltaEmbedder
+from codecortex.performance.graph_snapshot import GraphSnapshot
+from codecortex.performance.parallel_indexer import ParallelIndexer
+from codecortex.pipeline.context_builder import CodeCortexPipeline, PipelineConfig
 
 # ---------------------------------------------------------------------------
 # GraphSnapshot
@@ -158,8 +158,8 @@ class TestParallelIndexer:
 class TestDeltaEmbedder:
     def _pipeline(self, tmp_path):
         store = GraphStore(":memory:")
-        from core.parsers.python_parser import PythonParser
-        from graph.cpg_builder import CPGBuilder
+        from codecortex.core.parsers.python_parser import PythonParser
+        from codecortex.graph.cpg_builder import CPGBuilder
 
         f = tmp_path / "mod.py"
         f.write_text("def alpha(): pass\ndef beta(): pass\n")

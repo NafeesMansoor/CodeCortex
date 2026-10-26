@@ -17,15 +17,15 @@ Show the blast radius of a symbol change — which nodes are reachable from it v
 ```python
 import sys
 
-sys.path.insert(0, "/Users/nafees/Desktop/Claude/CodeCortex")
+sys.path.insert(0, "/Users/nafees/Desktop/Claude/DevTools/CodeCortex")
 
-from core.parsers import PythonParser
-from core.parser_framework import ParserRegistry
-from graph.graph_store import GraphStore
-from graph.cpg_builder import CPGBuilder
-from indexing.semantic_index import SemanticIndex
-from traversal.traversal_engine import TraversalEngine
-from core.types import TraversalConfig
+from codecortex.core.parsers import PythonParser
+from codecortex.core.parser_framework import ParserRegistry
+from codecortex.graph.graph_store import GraphStore
+from codecortex.graph.cpg_builder import CPGBuilder
+from codecortex.indexing.semantic_index import SemanticIndex
+from codecortex.traversal.traversal_engine import TraversalEngine
+from codecortex.core.types import TraversalConfig
 import pathlib
 
 registry = ParserRegistry()
@@ -63,4 +63,4 @@ for n in sorted(nodes, key=lambda x: x.file_path):
 
 - Depth is capped at 4 to keep output manageable; pass a different depth by editing the script.
 - Traversal follows outgoing CALLS and IMPORTS_FROM edges by default.
-- Run from the project root: `/Users/nafees/Desktop/Claude/CodeCortex/`
+- Run from the project root: `/Users/nafees/Desktop/Claude/DevTools/CodeCortex/`

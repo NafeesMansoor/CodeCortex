@@ -21,13 +21,13 @@ from typing import Any, Optional
 from codecortex.version import __version__, installed_metadata_version
 
 CORE_MODULES = (
-    "core.types",
-    "core.parser_framework",
-    "graph.cpg_builder",
-    "graph.graph_store",
-    "indexing.symbol_cache",
-    "pipeline.context_builder",
-    "retrieval.retrieval_layer",
+    "codecortex.core.types",
+    "codecortex.core.parser_framework",
+    "codecortex.graph.cpg_builder",
+    "codecortex.graph.graph_store",
+    "codecortex.indexing.symbol_cache",
+    "codecortex.pipeline.context_builder",
+    "codecortex.retrieval.retrieval_layer",
 )
 
 OPTIONAL_MODULES = {
@@ -102,6 +102,27 @@ def _check_core_modules(report: HealthReport) -> None:
         "Core modules",
         not failed,
         "all import cleanly" if not failed else "; ".join(failed),
+    )
+
+
+def _check_grammars(report: HealthReport) -> None:
+    """Every supported language's grammar wheel loads, without a download."""
+    try:
+        from codecortex.core.parsers import grammars
+        from codecortex.core.parsers.registry import PARSER_CLASSES
+    except Exception as exc:
+        report.add("Language grammars", False, f"parser registry unavailable ({exc})")
+        return
+
+    missing = []
+    for parser_class in PARSER_CLASSES:
+        grammar = getattr(parser_class, "grammar", "") or parser_class.language
+        if grammars.get_language(grammar) is None:
+            missing.append(parser_class.language)
+    report.add(
+        "Language grammars",
+        not missing,
+        f"{len(PARSER_CLASSES)} languages" if not missing else "missing: " + ", ".join(missing),
     )
 
 
@@ -209,6 +230,7 @@ def run_health_check(
 ) -> HealthReport:
     report = HealthReport()
     _check_core_modules(report)
+    _check_grammars(report)
     _check_version_metadata(report)
     _check_database_engine(report)
     _check_config(report, config_path)

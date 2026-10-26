@@ -17,13 +17,13 @@ Ingest a codebase directory into the CodeCortex CPG and report coverage metrics.
 ```python
 import sys, time
 
-sys.path.insert(0, "/Users/nafees/Desktop/Claude/CodeCortex")
+sys.path.insert(0, "/Users/nafees/Desktop/Claude/DevTools/CodeCortex")
 
-from core.parser_framework import ParserRegistry
-from core.parsers import PythonParser, JavaScriptParser, TypeScriptParser, PHPParser
-from graph.graph_store import GraphStore
-from graph.cpg_builder import CPGBuilder
-from indexing.semantic_index import SemanticIndex
+from codecortex.core.parser_framework import ParserRegistry
+from codecortex.core.parsers import PythonParser, JavaScriptParser, TypeScriptParser, PHPParser
+from codecortex.graph.graph_store import GraphStore
+from codecortex.graph.cpg_builder import CPGBuilder
+from codecortex.indexing.semantic_index import SemanticIndex
 import pathlib, tracemalloc
 
 registry = ParserRegistry()

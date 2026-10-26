@@ -11,7 +11,7 @@ Expected file layout (codecortex.yaml):
       on_demand_cfg: true
       on_demand_dfg: true
       centrality_ranking: true
-      embedding_backend: stub   # stub | local | openai
+      embedding_backend: lexical   # lexical | local | openai | stub
       embedding_dimensions: 384
       min_cluster_size: 5
       retrieval_top_k: 20
@@ -53,7 +53,7 @@ class CodeCortexConfig:
     on_demand_cfg: bool = False
     on_demand_dfg: bool = False
 
-    embedding_backend: str = "stub"
+    embedding_backend: str = "lexical"
     embedding_dimensions: int = 384
     min_cluster_size: int = 5
 
@@ -66,13 +66,14 @@ class CodeCortexConfig:
     respect_gitignore: bool = True
 
     def to_pipeline_config(self):
-        from pipeline.context_builder import PipelineConfig
+        from codecortex.pipeline.context_builder import PipelineConfig
 
         return PipelineConfig(
             enable_cfg=self.enable_cpg and not self.on_demand_cfg,
             enable_dfg=self.enable_cpg and not self.on_demand_dfg,
             enable_endpoints=self.enable_cpg,
-            embedding_backend=self.embedding_backend if self.enable_embeddings else "stub",
+            # Model embeddings are opt-in; keyword matching costs nothing.
+            embedding_backend=self.embedding_backend if self.enable_embeddings else "lexical",
             embedding_dimensions=self.embedding_dimensions,
             enable_clustering=self.enable_clustering,
             min_cluster_size=self.min_cluster_size,

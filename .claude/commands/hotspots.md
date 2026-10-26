@@ -9,13 +9,13 @@ Show the top centrality hotspots in the code-review-graph CPG — the nodes with
 ```python
 import sys
 
-sys.path.insert(0, "/Users/nafees/Desktop/Claude/CodeCortex")
+sys.path.insert(0, "/Users/nafees/Desktop/Claude/DevTools/CodeCortex")
 
-from core.parsers import PythonParser
-from core.parser_framework import ParserRegistry
-from graph.graph_store import GraphStore
-from graph.cpg_builder import CPGBuilder
-from ranking.centrality_engine import CentralityEngine
+from codecortex.core.parsers import PythonParser
+from codecortex.core.parser_framework import ParserRegistry
+from codecortex.graph.graph_store import GraphStore
+from codecortex.graph.cpg_builder import CPGBuilder
+from codecortex.ranking.centrality_engine import CentralityEngine
 import pathlib
 
 registry = ParserRegistry()
@@ -43,4 +43,4 @@ for rank, (name, s) in enumerate(hotspots, 1):
 
 - Hotspots are ranked by `bridge_score × (fan_in + 1)` — nodes that are both structural bridges and heavily called.
 - High-fan-in + high-bridge nodes are change-blast-radius candidates: modifying them ripples widely.
-- Run from the project root: `/Users/nafees/Desktop/Claude/CodeCortex/`
+- Run from the project root: `/Users/nafees/Desktop/Claude/DevTools/CodeCortex/`

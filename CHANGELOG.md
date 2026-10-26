@@ -4,6 +4,98 @@ All notable changes to CodeCortex are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and CodeCortex uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-10-27
+
+### Breaking
+
+- **Every module moved under the `codecortex` package.** Installing CodeCortex
+  used to add twelve top-level packages to an environment — `core`, `graph`,
+  `pipeline`, `retrieval`, `visualization` and more — which could clash with
+  an application's own modules. Now it adds only `codecortex`. Imports from
+  `codecortex` itself (`from codecortex import CodeCortexPipeline`) are
+  unchanged; direct module imports need the prefix
+  (`from codecortex.pipeline.context_builder import …`). The CLI, configuration
+  and index caches are unaffected. See *Upgrading to 2.0.0* in UPDATING.md.
+
+### Added
+
+- **Build once, query on demand.** `codecortex index` now saves the graph and
+  its centrality and cluster results to `<project>/.codecortex/` (which
+  ignores itself in git). `codecortex query` and the new `codecortex explain`
+  load it and re-parse only files whose size or mtime changed, instead of
+  rebuilding the whole index on every call — on a 636-file repository, ~80 s
+  per question became ~1 s. Search vectors are saved too (float16), so the
+  model backends no longer re-embed the whole project per query.
+  `--rebuild` forces a fresh build; `index --no-save` skips saving.
+- `codecortex explain SYMBOL`: one symbol's definition, callers, callees and
+  base types, read from the saved graph.
+- `codecortex install` / `uninstall`: write (or remove) instructions telling
+  the project's AI assistant to query CodeCortex before grepping or reading
+  files — a marked block in `CLAUDE.md` plus a `.claude/skills/codecortex`
+  skill by default; `--platform agents|cursor|gemini|all` for others.
+  `uninstall --purge` also deletes `.codecortex/`.
+- `codecortex hook-guard`, registered by `install` as a Claude Code
+  `PreToolUse` hook on Grep/Glob/Read/Bash: when a saved index exists, it adds
+  a one-line note pointing searches and source reads at `codecortex query` /
+  `explain`. It never blocks a tool, notes at most once per session per kind,
+  and exits silently on any error. `install --no-hooks` skips it; existing
+  settings are merged, and invalid settings files are left untouched.
+- `lexical` embedding backend, now the default: hashed keyword vectors over
+  symbol names, kinds and modules, with no model or download. The previous
+  default (`stub`) produced all-zero vectors, so queries on a default install
+  had no semantic signal at all.
+- `codecortex health` checks that every language grammar loads.
+
+- **Twelve more languages: Go, Rust, Java, C#, C, C++, Ruby, Kotlin, Swift,
+  Scala, Lua and Bash.** Each extracts definitions, calls, imports and base
+  types into the same graph as the original four. Their grammars ship as
+  wheels, so parsing stays offline. See *Supported Languages* in the README.
+- `TreeSitterParser` (`core/parsers/treesitter_parser.py`): a table-driven
+  parser — a language is a list of grammar node types plus optional hooks.
+- `core/parsers/registry.py` is now the single list of parsers. The pipeline,
+  `reindex_file()`, on-demand expansion, `ParallelIndexer` and the indexing
+  providers all resolve parsers there instead of keeping their own tables.
+- `--languages` accepts a language name, alias or extension
+  (`py`, `rust`, `cs`, `tsx`).
+
+### Changed
+
+- `faiss-cpu` moved from the core dependencies to the `embeddings` extra
+  (retrieval already fell back to exact search without it; exact search now
+  uses numpy), and `tree-sitter-language-pack` is no longer a dependency.
+  A fresh install is ~100 MB.
+- The README recommends installing CodeCortex as an isolated tool
+  (`pipx` / `uv tool`) rather than into a project's environment, where its
+  top-level packages (`core`, `graph`, `pipeline`, …) can clash with the
+  project's own.
+
+### Fixed
+
+- **Indexing a ~600-file repository took over five minutes without scipy.**
+  The pure-Python PageRank fallback looped over every node for each node
+  without out-links on every iteration (O(V²) per step). With scipy, exact
+  closeness centrality and a 10 % betweenness sample cost ~35 s; large graphs
+  now use sampled closeness and at most 256 betweenness sources. The same
+  index now builds in ~21 s.
+- `codecortex query --impact` crashed in text mode (`KeyError:
+  'transitive_affected'`) after printing its first lines.
+- **JavaScript/TypeScript extraction missed most of a modern codebase.**
+  Arrow functions and function expressions bound to a name
+  (`const handler = async () => {}`), class methods, method calls
+  (`db.save()`, `this.auth.check()`), `new X()`, `require()`, dynamic
+  `import()` and `export ... from` were all dropped, and calls made inside a
+  method or arrow function were lost with them. TypeScript also dropped every
+  class, because TS names classes with `type_identifier`, and never emitted
+  `implements` edges; JavaScript never emitted `extends` edges.
+- `.mjs`/`.cjs` (JavaScript) and `.mts`/`.cts` (TypeScript) files were never
+  indexed.
+- **PHP extraction missed imports and member calls.** `use` statements
+  (including grouped `use A\{B, C}`) and `require`/`include` produced no
+  edges; `$this->m()` was recorded as a call to `$this`; static calls
+  (`User::find()`) and `new X()` were dropped; `implements` and trait use
+  produced no edges; methods were labelled as plain functions; and test
+  methods were emitted twice.
+
 ## [1.2.1] - 2026-08-30
 
 ### Fixed

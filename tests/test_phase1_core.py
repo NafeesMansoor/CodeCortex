@@ -8,7 +8,7 @@ import pytest
 # Add parent to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core import (
+from codecortex.core import (
     CodeCortexContext,
     EdgeInfo,
     EdgeKind,
@@ -18,8 +18,8 @@ from core import (
     ParserRegistry,
     SourceRange,
 )
-from indexing import LanguageConfig, LanguageConfigRegistry
-from traversal import TraversalNode
+from codecortex.indexing import LanguageConfig, LanguageConfigRegistry
+from codecortex.traversal import TraversalNode
 
 
 class TestCoreTypes:
@@ -170,7 +170,7 @@ class TestTTLCache:
 
     def test_cache_set_get(self):
         """Test cache set/get operations."""
-        from core import TTLCache
+        from codecortex.core import TTLCache
 
         cache = TTLCache(max_size=10, ttl_seconds=3600)
 
@@ -182,7 +182,7 @@ class TestTTLCache:
 
     def test_cache_clear(self):
         """Test cache clear."""
-        from core import TTLCache
+        from codecortex.core import TTLCache
 
         cache = TTLCache()
         cache.set("key", "value")

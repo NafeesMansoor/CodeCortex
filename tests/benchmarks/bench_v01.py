@@ -58,10 +58,10 @@ def _collect_python_files(directory: Path) -> list[Path]:
 
 def stage1_lsp(py_files: list[Path], quiet: bool) -> dict:
     """Stage 1: LSP-mode graph — call + import, no CFG/DFG."""
-    from core.parsers.python_parser import PythonParser
-    from graph.cpg_builder import CPGBuilder
-    from graph.graph_store import GraphStore
-    from indexing.semantic_index import SemanticIndex
+    from codecortex.core.parsers.python_parser import PythonParser
+    from codecortex.graph.cpg_builder import CPGBuilder
+    from codecortex.graph.graph_store import GraphStore
+    from codecortex.indexing.semantic_index import SemanticIndex
 
     parser = PythonParser()
     store = GraphStore(":memory:")
@@ -121,9 +121,9 @@ def stage1_lsp(py_files: list[Path], quiet: bool) -> dict:
 
 def stage2_cpg(py_files: list[Path], quiet: bool) -> dict:
     """Stage 2: Full CPG — AST + CFG + DFG + Endpoints."""
-    from core.parsers.python_parser import PythonParser
-    from graph.cpg_builder import CPGBuilder
-    from graph.graph_store import GraphStore
+    from codecortex.core.parsers.python_parser import PythonParser
+    from codecortex.graph.cpg_builder import CPGBuilder
+    from codecortex.graph.graph_store import GraphStore
 
     parser = PythonParser()
     store = GraphStore(":memory:")
@@ -172,10 +172,10 @@ def stage2_cpg(py_files: list[Path], quiet: bool) -> dict:
 
 def stage3_embeddings(store, quiet: bool) -> dict:
     """Stage 3: FAISS embedding index."""
-    from embeddings.embedding_pipeline import EmbeddingPipeline
-    from embeddings.provider_factory import EmbeddingConfig
-    from retrieval.retrieval_layer import RetrievalConfig, RetrievalLayer
-    from traversal.traversal_engine import AdjacencyCache
+    from codecortex.embeddings.embedding_pipeline import EmbeddingPipeline
+    from codecortex.embeddings.provider_factory import EmbeddingConfig
+    from codecortex.retrieval.retrieval_layer import RetrievalConfig, RetrievalLayer
+    from codecortex.traversal.traversal_engine import AdjacencyCache
 
     config = EmbeddingConfig(provider="stub", dimensions=64)
     pipeline = EmbeddingPipeline.from_config(store, config)
@@ -219,9 +219,9 @@ def stage3_embeddings(store, quiet: bool) -> dict:
 
 def stage4_clustering(emb_pipeline, quiet: bool) -> dict:
     """Stage 4: HDBSCAN clustering + quality evaluation."""
-    from clustering.cluster_labeler import ClusterLabeler
-    from clustering.cluster_quality import ClusterQualityEvaluator
-    from clustering.semantic_clusters import ClusterConfig, SemanticClusterer
+    from codecortex.clustering.cluster_labeler import ClusterLabeler
+    from codecortex.clustering.cluster_quality import ClusterQualityEvaluator
+    from codecortex.clustering.semantic_clusters import ClusterConfig, SemanticClusterer
 
     emb_store = emb_pipeline.embedding_store
     if emb_store.size() < 10:
@@ -280,8 +280,8 @@ def stage5_traversal(store, adj, quiet: bool) -> dict:
     """Stage 5: Bounded BFS, impact radius, taint traversal."""
     import random
 
-    from core.types import TraversalConfig
-    from traversal.traversal_engine import TraversalEngine
+    from codecortex.core.types import TraversalConfig
+    from codecortex.traversal.traversal_engine import TraversalEngine
 
     engine = TraversalEngine(store, enable_memoization=False, adjacency_cache=adj)
     nodes = store.all_nodes()
@@ -336,7 +336,7 @@ def stage5_traversal(store, adj, quiet: bool) -> dict:
 
 def stage6_centrality(store, quiet: bool) -> dict:
     """Stage 6: Centrality ranking — PageRank, betweenness, stability/volatility."""
-    from ranking.centrality_engine import CentralityEngine
+    from codecortex.ranking.centrality_engine import CentralityEngine
 
     t0 = time.perf_counter()
     engine = CentralityEngine(store, semantic_only=True)

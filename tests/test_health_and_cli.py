@@ -66,7 +66,7 @@ class TestHealthCheck:
         assert report.healthy
 
     def test_current_caches_pass(self, tmp_path):
-        from graph.graph_store import GraphStore
+        from codecortex.graph.graph_store import GraphStore
 
         GraphStore(str(tmp_path / "graph.db"))
         report = run_health_check(index_dir=tmp_path)
@@ -76,8 +76,8 @@ class TestHealthCheck:
     def test_cache_from_a_newer_version_is_fatal(self, tmp_path):
         import sqlite3
 
-        from core.db_schema import write_schema_version
-        from graph.graph_store import GraphStore
+        from codecortex.core.db_schema import write_schema_version
+        from codecortex.graph.graph_store import GraphStore
 
         GraphStore(str(tmp_path / "graph.db"))
         with sqlite3.connect(tmp_path / "graph.db") as conn:
@@ -90,8 +90,8 @@ class TestHealthCheck:
     def test_stale_cache_is_a_warning_not_a_failure(self, tmp_path):
         import sqlite3
 
-        from core.db_schema import write_schema_version
-        from graph.graph_store import GraphStore
+        from codecortex.core.db_schema import write_schema_version
+        from codecortex.graph.graph_store import GraphStore
 
         GraphStore(str(tmp_path / "graph.db"))
         with sqlite3.connect(tmp_path / "graph.db") as conn:

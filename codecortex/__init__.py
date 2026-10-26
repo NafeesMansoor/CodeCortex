@@ -3,10 +3,10 @@
 from codecortex.compat import require_version
 from codecortex.config import CodeCortexConfig, find_config
 from codecortex.config import load as load_config
+from codecortex.core.types import EdgeInfo, EdgeKind, NodeInfo, NodeKind, ParseResult, SourceRange
+from codecortex.graph.schema import CPGEdge, CPGNode
+from codecortex.pipeline.context_builder import CodeCortexPipeline, PipelineConfig, PipelineStats
 from codecortex.version import __version__
-from core.types import EdgeInfo, EdgeKind, NodeInfo, NodeKind, ParseResult, SourceRange
-from graph.schema import CPGEdge, CPGNode
-from pipeline.context_builder import CodeCortexPipeline, PipelineConfig, PipelineStats
 
 __all__ = [
     # Pipeline

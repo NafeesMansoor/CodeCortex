@@ -5,11 +5,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.types import EdgeKind, NodeKind, TraversalConfig
-from graph.graph_store import GraphStore
-from graph.schema import CPGEdge, CPGNode
-from traversal.query_optimizer import OptimizationHints, QueryOptimizer
-from traversal.traversal_engine import AdjacencyCache, TraversalEngine
+from codecortex.core.types import EdgeKind, NodeKind, TraversalConfig
+from codecortex.graph.graph_store import GraphStore
+from codecortex.graph.schema import CPGEdge, CPGNode
+from codecortex.traversal.query_optimizer import OptimizationHints, QueryOptimizer
+from codecortex.traversal.traversal_engine import AdjacencyCache, TraversalEngine
 
 # ---------------------------------------------------------------------------
 # Graph fixture

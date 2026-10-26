@@ -6,7 +6,7 @@ Run the CodeCortex benchmark suite against the `code-review-graph` codebase and 
 
 1. Run the benchmark using:
    ```
-   /Users/nafees/Desktop/Claude/zombie_trades_venv/venv/bin/python3 tests/benchmarks/benchmark_runner.py
+   /Users/nafees/Desktop/Claude/Trading/zombie_trades_venv/venv/bin/python3 tests/benchmarks/benchmark_runner.py
    ```
    Optionally pass `--phase <label>` to tag the result with a custom phase name, or `--quiet` to suppress verbose output.
 

@@ -31,7 +31,7 @@ CodeCortex follows Semantic Versioning: `MAJOR.MINOR.PATCH`.
 The version lives in exactly one place — `codecortex/version.py`:
 
 ```python
-__version__ = "1.2.1"
+__version__ = "2.0.0"
 ```
 
 `pyproject.toml` reads that attribute statically (`[tool.setuptools.dynamic]`),
@@ -49,7 +49,7 @@ print(__version__)
 ## Checking your version
 
 ```bash
-codecortex --version              # CodeCortex 1.2.1
+codecortex --version              # CodeCortex 2.0.0
 codecortex version                # version, installation model, last update check
 codecortex version --check        # ask the release service for a newer version
 codecortex version --json         # machine-readable installation metadata
@@ -206,10 +206,10 @@ codecortex health --index-dir .codecortex --config codecortex.yaml
 ```
 
 ```text
-CodeCortex Health Check (1.2.1)
+CodeCortex Health Check (2.0.0)
 
   [OK  ] Core modules — all import cleanly
-  [OK  ] Version metadata — code 1.2.1 == metadata 1.2.1
+  [OK  ] Version metadata — code 2.0.0 == metadata 2.0.0
   [OK  ] Database engine — sqlite 3.53.3
   [OK  ] Configuration — codecortex.yaml parsed
   [OK  ] Index caches — 4 database(s) at the current schema
@@ -276,7 +276,7 @@ in a MINOR release.
 
 ```bash
 # 1. Update the version — the only place it lives
-$EDITOR codecortex/version.py          # __version__ = "1.2.1"
+$EDITOR codecortex/version.py          # __version__ = "2.0.0"
 
 # 2. Move the Unreleased notes into a dated section
 $EDITOR CHANGELOG.md
@@ -287,8 +287,8 @@ ruff check . && ruff format --check .
 python scripts/release_metadata.py --check-only
 
 # 4. Commit, tag, push
-git commit -am "release: v1.2.1"
-git tag v1.2.1
+git commit -am "release: v2.0.0"
+git tag v2.0.0
 git push origin main --tags
 ```
 
@@ -309,8 +309,8 @@ update is required.
 1.2.x → latest
 ```
 
-Every 1.x release upgrades directly to the newest 1.x release; there are no
-staged upgrades today. If that changes, `minimum_version` in the release's
+Every release upgrades directly to the newest release; there are no staged
+upgrades today. If that changes, `minimum_version` in the release's
 `update.json` will say so, and `codecortex update` will report the requirement
 instead of attempting the jump.
 
@@ -322,17 +322,17 @@ upgrade to pick it up; after that the normal flow applies.
 
 ```bash
 # pip installation
-pip install --upgrade "codecortex @ git+https://github.com/NafeesMansoor/CodeCortex.git@v1.2.1"
+pip install --upgrade "codecortex @ git+https://github.com/NafeesMansoor/CodeCortex.git@v2.0.0"
 
 # git checkout (commit or stash local changes first)
 cd /path/to/CodeCortex
-git fetch --tags origin && git checkout v1.2.1 && pip install -e .
+git fetch --tags origin && git checkout v2.0.0 && pip install -e .
 ```
 
 Then verify and re-index:
 
 ```bash
-codecortex --version    # CodeCortex 1.2.1
+codecortex --version    # CodeCortex 2.0.0
 codecortex health
 codecortex index .      # unstamped caches from older versions rebuild here
 ```
@@ -340,6 +340,41 @@ codecortex index .      # unstamped caches from older versions rebuild here
 Configuration is untouched by either route. Caches written before 1.2.0 carry
 no schema stamp, so the first open rebuilds them — see
 [Index cache migrations](#index-cache-migrations).
+
+### Upgrading to 2.0.0: code that imports CodeCortex modules
+
+2.0.0 moves every module under the `codecortex` package. Before, installing
+CodeCortex added twelve top-level packages to an environment — `core`,
+`graph`, `pipeline`, `retrieval` and so on — which could clash with an
+application's own modules of the same name. Now it adds only `codecortex`.
+
+The CLI, `codecortex.yaml` and index caches are unaffected. Code that imports
+the public API from `codecortex` itself is unaffected:
+
+```python
+from codecortex import CodeCortexPipeline, PipelineConfig  # 1.x and 2.x
+```
+
+Code that imported a module directly needs the `codecortex.` prefix:
+
+| 1.x | 2.0 |
+|---|---|
+| `from pipeline.context_builder import CodeCortexPipeline` | `from codecortex.pipeline.context_builder import CodeCortexPipeline` |
+| `from core.parser_framework import LanguageParser` | `from codecortex.core.parser_framework import LanguageParser` |
+| `from graph.graph_store import GraphStore` | `from codecortex.graph.graph_store import GraphStore` |
+| `from visualization import export_pipeline` | `from codecortex.visualization import export_pipeline` |
+
+The same holds for `indexing`, `embeddings`, `clustering`, `traversal`,
+`ranking`, `retrieval` and `performance`. A one-line rewrite covers most code:
+
+```bash
+sed -E -i.bak 's/^(\s*)(from|import) (core|graph|indexing|embeddings|clustering|traversal|ranking|retrieval|pipeline|performance|visualization)([. ])/\1\2 codecortex.\3\4/' your_module.py
+```
+
+An application that cannot move yet should pin below 2.0 — see
+[Consuming applications](#consuming-applications).
+
+Saved project indexes (`.codecortex/`) written by 1.x are rebuilt on first use.
 
 ## Troubleshooting
 

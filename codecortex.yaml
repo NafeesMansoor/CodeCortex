@@ -14,8 +14,8 @@ codecortex:
   on_demand_cfg: false
   on_demand_dfg: false
 
-  # Embedding provider: stub | local | openai
-  embedding_backend: stub
+  # Embedding provider: lexical (keyword, no model) | local | openai | stub
+  embedding_backend: lexical
   embedding_dimensions: 384
 
   # Clustering

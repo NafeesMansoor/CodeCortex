@@ -5,17 +5,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from clustering.cluster_labeler import ClusterLabeler, _module_prefix, _tokenize
-from clustering.cluster_quality import ClusterQualityEvaluator, ClusterQualityReport
-from clustering.cluster_store import ClusterStore
-from clustering.semantic_clusters import (
+from codecortex.clustering.cluster_labeler import ClusterLabeler, _module_prefix, _tokenize
+from codecortex.clustering.cluster_quality import ClusterQualityEvaluator, ClusterQualityReport
+from codecortex.clustering.cluster_store import ClusterStore
+from codecortex.clustering.semantic_clusters import (
     Cluster,
     ClusterConfig,
     ClusteringResult,
     SemanticClusterer,
 )
-from embeddings.embedding_store import EmbeddingStore
-from embeddings.provider_factory import StubEmbeddingProvider
+from codecortex.embeddings.embedding_store import EmbeddingStore
+from codecortex.embeddings.provider_factory import StubEmbeddingProvider
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -5,15 +5,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.parsers import PythonParser
-from core.types import NodeKind
-from embeddings.code_embedder import CodeEmbedder, _camel_to_words, _kind_label
-from embeddings.embedding_pipeline import EmbeddingPipeline, PipelineStats
-from embeddings.embedding_store import EmbeddingStore
-from embeddings.provider_factory import EmbeddingConfig, StubEmbeddingProvider
-from graph.cpg_builder import CPGBuilder
-from graph.graph_store import GraphStore
-from graph.schema import CPGNode
+from codecortex.core.parsers import PythonParser
+from codecortex.core.types import NodeKind
+from codecortex.embeddings.code_embedder import CodeEmbedder, _camel_to_words, _kind_label
+from codecortex.embeddings.embedding_pipeline import EmbeddingPipeline, PipelineStats
+from codecortex.embeddings.embedding_store import EmbeddingStore
+from codecortex.embeddings.provider_factory import EmbeddingConfig, StubEmbeddingProvider
+from codecortex.graph.cpg_builder import CPGBuilder
+from codecortex.graph.graph_store import GraphStore
+from codecortex.graph.schema import CPGNode
 
 # ---------------------------------------------------------------------------
 # CodeEmbedder

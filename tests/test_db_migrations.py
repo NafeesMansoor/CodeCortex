@@ -8,19 +8,19 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from clustering.cluster_store import ClusterStore
 from codecortex import migrations
-from core.db_schema import (
+from codecortex.clustering.cluster_store import ClusterStore
+from codecortex.core.db_schema import (
     SchemaVersionError,
     ensure_schema,
     read_schema_version,
     write_schema_version,
 )
-from core.types import EdgeKind, NodeKind
-from graph.graph_store import GraphStore
-from graph.schema import CPGEdge, CPGNode
-from indexing.reference_graph import ReferenceGraph
-from indexing.symbol_cache import SymbolCache
+from codecortex.core.types import EdgeKind, NodeKind
+from codecortex.graph.graph_store import GraphStore
+from codecortex.graph.schema import CPGEdge, CPGNode
+from codecortex.indexing.reference_graph import ReferenceGraph
+from codecortex.indexing.symbol_cache import SymbolCache
 
 DDL = "CREATE TABLE IF NOT EXISTS widgets (id INTEGER PRIMARY KEY, name TEXT)"
 

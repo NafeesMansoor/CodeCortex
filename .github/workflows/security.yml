@@ -31,7 +31,7 @@ jobs:
         run: |
           bandit -r . \
             --skip B101,B105,B110,B112,B311,B403,B404,B603,B607 \
-            --exclude ./.git,./.venv,./tests,./build,./dist,./visualization/static \
+            --exclude ./.git,./.venv,./tests,./build,./dist,./codecortex/visualization/static \
             -f txt -q
 
       - name: Audit dependencies for known vulnerabilities

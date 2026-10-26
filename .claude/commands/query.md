@@ -15,17 +15,17 @@ Run a hybrid GraphRAG retrieval query against the code-review-graph CPG and retu
 ```python
 import sys
 
-sys.path.insert(0, "/Users/nafees/Desktop/Claude/CodeCortex")
+sys.path.insert(0, "/Users/nafees/Desktop/Claude/DevTools/CodeCortex")
 
-from core.parsers import PythonParser
-from core.parser_framework import ParserRegistry
-from graph.graph_store import GraphStore
-from graph.cpg_builder import CPGBuilder
-from indexing.semantic_index import SemanticIndex
-from embeddings.provider_factory import create_embedding_provider, EmbeddingConfig
-from embeddings.embedding_store import EmbeddingStore
-from ranking.centrality_engine import CentralityEngine
-from retrieval.retrieval_layer import RetrievalLayer
+from codecortex.core.parsers import PythonParser
+from codecortex.core.parser_framework import ParserRegistry
+from codecortex.graph.graph_store import GraphStore
+from codecortex.graph.cpg_builder import CPGBuilder
+from codecortex.indexing.semantic_index import SemanticIndex
+from codecortex.embeddings.provider_factory import create_embedding_provider, EmbeddingConfig
+from codecortex.embeddings.embedding_store import EmbeddingStore
+from codecortex.ranking.centrality_engine import CentralityEngine
+from codecortex.retrieval.retrieval_layer import RetrievalLayer
 import pathlib
 
 registry = ParserRegistry()
@@ -57,4 +57,4 @@ for r in results:
 
 - Scores are structural proxies (stub embeddings) — not true semantic similarity.
 - Real semantic search requires `backend='local'` or `backend='openai'` in `EmbeddingConfig`.
-- Run from the project root: `/Users/nafees/Desktop/Claude/CodeCortex/`
+- Run from the project root: `/Users/nafees/Desktop/Claude/DevTools/CodeCortex/`

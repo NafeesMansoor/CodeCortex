@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.file_walker import DEFAULT_EXCLUDED_DIRS, GitIgnore, walk_source_files
+from codecortex.core.file_walker import DEFAULT_EXCLUDED_DIRS, GitIgnore, walk_source_files
 
 
 def _touch(path: Path, content: str = "x = 1\n") -> Path:

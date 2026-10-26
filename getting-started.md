@@ -24,9 +24,6 @@ pip install -r requirements.txt
 # Install the package in editable mode (registers `codecortex` and `cx` CLI)
 pip install -e .
 
-# Install tree-sitter-language-pack (required for PHP/JS/TS parsing)
-pip install tree-sitter-language-pack
-
 # Verify
 codecortex --help
 ```
@@ -62,9 +59,6 @@ pip install jedi pygls
 
 # HDBSCAN clustering + UMAP
 pip install hdbscan umap-learn scikit-learn
-
-# PHP support (tree-sitter-language-pack ships the PHP grammar)
-pip install tree-sitter-language-pack
 ```
 
 ---
@@ -306,7 +300,7 @@ top = pipeline.top_nodes(n=20)
 pipeline.reindex_file("/path/to/repo/auth/service.py")
 
 # Export graph for visualization
-from visualization import export_pipeline
+from codecortex.visualization import export_pipeline
 import json
 
 data = export_pipeline(pipeline, project_name="my-project")
@@ -409,7 +403,7 @@ Snapshot: `.codecortex/graph.json` — rebuild with:
 
 | Symptom | Fix |
 |---------|-----|
-| Empty graph / no nodes in visualizer | Check files exist for supported languages (`.py .js .ts .php`). Run with `CODECORTEX_LOG_LEVEL=DEBUG`. |
+| Empty graph / no nodes in visualizer | Check files exist for a supported language (see *Supported Languages* in the README). Run with `CODECORTEX_LOG_LEVEL=DEBUG`. |
 | Far more files indexed than the project has | A directory the defaults don't cover is being walked. Add it via `--exclude`, or check you did not pass `--no-default-excludes`. |
 | "Clustering skipped" message | Expected when `scikit-learn`/`hdbscan` are not installed. Install with `pip install scikit-learn hdbscan umap-learn` to enable. |
 | 0 clusters produced | HDBSCAN needs real embeddings. Set `embedding_backend: local` and `pip install sentence-transformers`. |
@@ -418,4 +412,4 @@ Snapshot: `.codecortex/graph.json` — rebuild with:
 | `codecortex: command not found` | Install with `pip install -e .` from inside the cloned repo directory. |
 | `pip: command not found` on macOS | Use `pip3` or `python3 -m pip`. Homebrew Python does not symlink `pip`. |
 | `error: externally-managed-environment` | Create a virtualenv first: `python3 -m venv .venv && source .venv/bin/activate`. |
-| PHP files produce no nodes | `tree-sitter-language-pack` is required for the PHP grammar: `pip install tree-sitter-language-pack`. |
+| Files of one language produce no nodes | Run `codecortex health`; every grammar ships as a dependency, so a missing one means a broken install — reinstall CodeCortex. |

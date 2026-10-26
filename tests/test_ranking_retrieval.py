@@ -5,11 +5,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.types import EdgeKind, NodeKind
-from embeddings import EmbeddingStore, StubEmbeddingProvider
-from graph import CPGEdge, CPGNode, GraphStore
-from ranking import CentralityEngine, NodeScore
-from retrieval import RetrievalConfig, RetrievalLayer
+from codecortex.core.types import EdgeKind, NodeKind
+from codecortex.embeddings import EmbeddingStore, StubEmbeddingProvider
+from codecortex.graph import CPGEdge, CPGNode, GraphStore
+from codecortex.ranking import CentralityEngine, NodeScore
+from codecortex.retrieval import RetrievalConfig, RetrievalLayer
 
 
 def _build_simple_graph() -> GraphStore:
@@ -117,7 +117,7 @@ class TestRetrievalLayer:
             assert hasattr(r, "semantic_score")
 
     def test_result_to_dict(self):
-        from retrieval import RetrievalResult
+        from codecortex.retrieval import RetrievalResult
 
         r = RetrievalResult(
             qualified_name="mod.func",

@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterable, Optional
 
-from core.db_schema import read_schema_version
+from codecortex.core.db_schema import read_schema_version
 
 logger = logging.getLogger(__name__)
 
@@ -34,25 +34,25 @@ class StoreSpec:
 
 
 def _graph_spec() -> StoreSpec:
-    from graph.graph_store import SCHEMA_VERSION, GraphStore
+    from codecortex.graph.graph_store import SCHEMA_VERSION, GraphStore
 
     return StoreSpec("graph", ("nodes", "edges"), lambda: SCHEMA_VERSION, GraphStore)
 
 
 def _symbol_cache_spec() -> StoreSpec:
-    from indexing.symbol_cache import SCHEMA_VERSION, SymbolCache
+    from codecortex.indexing.symbol_cache import SCHEMA_VERSION, SymbolCache
 
     return StoreSpec("symbol_cache", ("symbols",), lambda: SCHEMA_VERSION, SymbolCache)
 
 
 def _reference_graph_spec() -> StoreSpec:
-    from indexing.reference_graph import SCHEMA_VERSION, ReferenceGraph
+    from codecortex.indexing.reference_graph import SCHEMA_VERSION, ReferenceGraph
 
     return StoreSpec("reference_graph", ("occurrences",), lambda: SCHEMA_VERSION, ReferenceGraph)
 
 
 def _cluster_store_spec() -> StoreSpec:
-    from clustering.cluster_store import SCHEMA_VERSION, ClusterStore
+    from codecortex.clustering.cluster_store import SCHEMA_VERSION, ClusterStore
 
     return StoreSpec(
         "cluster_store", ("clusters", "cluster_members"), lambda: SCHEMA_VERSION, ClusterStore

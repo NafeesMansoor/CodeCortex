@@ -387,8 +387,8 @@ class TestUpgradeStateMachine:
     def test_blocked_migration_triggers_rollback(self, orchestration, tmp_path):
         import sqlite3
 
-        from core.db_schema import write_schema_version
-        from graph.graph_store import GraphStore
+        from codecortex.core.db_schema import write_schema_version
+        from codecortex.graph.graph_store import GraphStore
 
         index_dir = tmp_path / "index"
         index_dir.mkdir()
@@ -405,8 +405,8 @@ class TestUpgradeStateMachine:
     def test_stale_caches_are_rebuilt_during_update(self, orchestration, tmp_path):
         import sqlite3
 
-        from core.db_schema import read_schema_version, write_schema_version
-        from graph.graph_store import GraphStore
+        from codecortex.core.db_schema import read_schema_version, write_schema_version
+        from codecortex.graph.graph_store import GraphStore
 
         index_dir = tmp_path / "index"
         index_dir.mkdir()

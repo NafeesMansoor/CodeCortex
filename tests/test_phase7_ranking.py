@@ -5,10 +5,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.types import EdgeKind, NodeKind
-from graph.graph_store import GraphStore
-from graph.schema import CPGEdge, CPGNode
-from ranking.centrality_engine import _SEMANTIC_KINDS, CentralityEngine, NodeScore
+from codecortex.core.types import EdgeKind, NodeKind
+from codecortex.graph.graph_store import GraphStore
+from codecortex.graph.schema import CPGEdge, CPGNode
+from codecortex.ranking.centrality_engine import _SEMANTIC_KINDS, CentralityEngine, NodeScore
 
 # ---------------------------------------------------------------------------
 # Graph fixtures
@@ -259,8 +259,8 @@ class TestTopNodes:
 
 class TestCentralityIntegration:
     def test_cpg_graph_scores(self):
-        from core.parsers import PythonParser
-        from graph.cpg_builder import CPGBuilder
+        from codecortex.core.parsers import PythonParser
+        from codecortex.graph.cpg_builder import CPGBuilder
 
         src = (
             "def alpha():\n    beta()\n    gamma()\n"

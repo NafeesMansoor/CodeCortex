@@ -6,24 +6,24 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.parsers import PythonParser
-from core.types import NodeKind
-from graph.cpg_builder import CPGBuilder
-from graph.graph_store import GraphStore
-from indexing.graph_enricher import EnrichmentStats, GraphEnricher
-from indexing.indexing_provider import (
+from codecortex.core.parsers import PythonParser
+from codecortex.core.types import NodeKind
+from codecortex.graph.cpg_builder import CPGBuilder
+from codecortex.graph.graph_store import GraphStore
+from codecortex.indexing.graph_enricher import EnrichmentStats, GraphEnricher
+from codecortex.indexing.indexing_provider import (
     IndexingProvider,
     IndexResult,
     ProviderRegistry,
     SymbolDefinition,
     SymbolOccurrence,
 )
-from indexing.jedi_provider import JediProvider
-from indexing.reference_graph import ReferenceGraph
-from indexing.scip_provider import SCIPProvider, _scip_symbol_to_qualified
-from indexing.semantic_index import SemanticIndex
-from indexing.symbol_cache import SymbolCache
-from indexing.symbol_resolver import SymbolResolver
+from codecortex.indexing.jedi_provider import JediProvider
+from codecortex.indexing.reference_graph import ReferenceGraph
+from codecortex.indexing.scip_provider import SCIPProvider, _scip_symbol_to_qualified
+from codecortex.indexing.semantic_index import SemanticIndex
+from codecortex.indexing.symbol_cache import SymbolCache
+from codecortex.indexing.symbol_resolver import SymbolResolver
 
 # ---------------------------------------------------------------------------
 # ProviderRegistry

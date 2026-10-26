@@ -64,6 +64,11 @@ def main(argv=None) -> int:
         help="Defer DFG construction to query time (hybrid Tier-2 mode)",
     )
     parser.add_argument(
+        "--no-save",
+        action="store_true",
+        help="Do not save the index to <target>/.codecortex/ for later queries",
+    )
+    parser.add_argument(
         "--save-snapshot",
         metavar="PATH",
         default=None,
@@ -80,7 +85,7 @@ def main(argv=None) -> int:
         nargs="+",
         metavar="LANG",
         default=None,
-        help="Limit to specific languages: py js ts php",
+        help="Limit to specific languages, by name or extension (e.g. py ts go rust java)",
     )
     parser.add_argument(
         "--exclude",
@@ -144,7 +149,7 @@ def main(argv=None) -> int:
         print()
 
     from codecortex.cli import make_progress_printer
-    from pipeline.context_builder import CodeCortexPipeline
+    from codecortex.pipeline.context_builder import CodeCortexPipeline
 
     # Refresh the update cache while indexing runs. Daemon thread, no result
     # awaited — indexing must not depend on the release service being reachable.
@@ -170,10 +175,17 @@ def main(argv=None) -> int:
         print(f"  Clusters : {stats.clusters}")
         print(f"  Time     : {elapsed:.2f}s")
 
+    if not args.no_save:
+        from codecortex.pipeline.state import save_state
+
+        state_dir = save_state(pipeline, target)
+        if not args.quiet:
+            print(f"\n  Saved    : {state_dir}  (query and explain reuse it)")
+
     if args.save_snapshot:
         snap_path = Path(args.save_snapshot)
         snap_path.parent.mkdir(parents=True, exist_ok=True)
-        from performance.graph_snapshot import GraphSnapshot
+        from codecortex.performance.graph_snapshot import GraphSnapshot
 
         snap = GraphSnapshot(pipeline.graph_store)
         mtimes = {str(f): f.stat().st_mtime for f in pipeline._indexed_files if f.exists()}

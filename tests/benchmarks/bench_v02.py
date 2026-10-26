@@ -58,9 +58,9 @@ def _collect_py(directory: Path) -> list[Path]:
 
 
 def _build_full_cpg(py_files: list[Path]):
-    from core.parsers.python_parser import PythonParser
-    from graph.cpg_builder import CPGBuilder
-    from graph.graph_store import GraphStore
+    from codecortex.core.parsers.python_parser import PythonParser
+    from codecortex.graph.cpg_builder import CPGBuilder
+    from codecortex.graph.graph_store import GraphStore
 
     store = GraphStore(":memory:")
     builder = CPGBuilder(store, enable_cfg=True, enable_dfg=True, enable_endpoints=True)
@@ -78,14 +78,14 @@ def _build_full_cpg(py_files: list[Path]):
 
 
 def _build_adj(store):
-    from traversal.traversal_engine import AdjacencyCache
+    from codecortex.traversal.traversal_engine import AdjacencyCache
 
     return AdjacencyCache.build(store)
 
 
 def _build_stub_emb(store):
-    from embeddings.embedding_pipeline import EmbeddingPipeline
-    from embeddings.provider_factory import EmbeddingConfig
+    from codecortex.embeddings.embedding_pipeline import EmbeddingPipeline
+    from codecortex.embeddings.provider_factory import EmbeddingConfig
 
     cfg = EmbeddingConfig(provider="stub", dimensions=64)
     pipeline = EmbeddingPipeline.from_config(store, cfg)
@@ -94,8 +94,8 @@ def _build_stub_emb(store):
 
 
 def _build_real_emb(store):
-    from embeddings.embedding_pipeline import EmbeddingPipeline
-    from embeddings.provider_factory import EmbeddingConfig
+    from codecortex.embeddings.embedding_pipeline import EmbeddingPipeline
+    from codecortex.embeddings.provider_factory import EmbeddingConfig
 
     cfg = EmbeddingConfig(provider="local", model_name="all-MiniLM-L6-v2", dimensions=384)
     pipeline = EmbeddingPipeline.from_config(store, cfg)
@@ -106,7 +106,7 @@ def _build_real_emb(store):
 
 
 def _retrieval_latency(store, emb_pipeline, adj, centrality=None):
-    from retrieval.retrieval_layer import RetrievalConfig, RetrievalLayer
+    from codecortex.retrieval.retrieval_layer import RetrievalConfig, RetrievalLayer
 
     cfg = RetrievalConfig(top_k=10, min_semantic_score=0.0, token_budget=None)
     layer = RetrievalLayer(store, emb_pipeline.embedding_store, config=cfg, adjacency_cache=adj)
@@ -143,7 +143,7 @@ def _score(retrieval_pct, graph_compression_pct, semantic_sil, efficiency_01, ra
 
 
 def phase1_hybrid_cpg(py_files: list[Path], quiet: bool) -> None:
-    from graph.graph_pruner import GraphPruner
+    from codecortex.graph.graph_pruner import GraphPruner
 
     tracemalloc.start()
     t0 = time.perf_counter()
@@ -162,8 +162,8 @@ def phase1_hybrid_cpg(py_files: list[Path], quiet: bool) -> None:
     # BFS latency on both graphs
     import random
 
-    from core.types import TraversalConfig
-    from traversal.traversal_engine import TraversalEngine
+    from codecortex.core.types import TraversalConfig
+    from codecortex.traversal.traversal_engine import TraversalEngine
 
     sample = random.sample(store_full.all_nodes(), min(20, store_full.node_count()))
     names = [n.qualified_name for n in sample]
@@ -236,7 +236,7 @@ def phase1_hybrid_cpg(py_files: list[Path], quiet: bool) -> None:
 
 def phase2_real_embeddings(py_files: list[Path], quiet: bool) -> None:
     store_full, _ = _build_full_cpg(py_files)
-    from graph.graph_pruner import GraphPruner
+    from codecortex.graph.graph_pruner import GraphPruner
 
     store, prune_stats = GraphPruner().prune(store_full)
     adj = _build_adj(store)
@@ -324,11 +324,11 @@ def phase2_real_embeddings(py_files: list[Path], quiet: bool) -> None:
 
 def phase3_louvain(py_files: list[Path], quiet: bool) -> None:
     store_full, _ = _build_full_cpg(py_files)
-    from graph.graph_pruner import GraphPruner
+    from codecortex.graph.graph_pruner import GraphPruner
 
     store, _ = GraphPruner().prune(store_full)
 
-    from clustering.louvain_clusterer import LouvainClusterer
+    from codecortex.clustering.louvain_clusterer import LouvainClusterer
 
     t0 = time.perf_counter()
     result = LouvainClusterer(resolution=1.0).cluster(store)
@@ -399,19 +399,19 @@ def phase4_beam_traversal(py_files: list[Path], quiet: bool) -> None:
     import random
 
     store_full, _ = _build_full_cpg(py_files)
-    from graph.graph_pruner import GraphPruner
+    from codecortex.graph.graph_pruner import GraphPruner
 
     store, _ = GraphPruner().prune(store_full)
     adj = _build_adj(store)
     real_pipeline, _, _ = _build_real_emb(store)
 
-    from ranking.centrality_engine import CentralityEngine
+    from codecortex.ranking.centrality_engine import CentralityEngine
 
     centrality = CentralityEngine(store, semantic_only=True).compute()
 
-    from core.types import TraversalConfig
-    from traversal.beam_traversal import BeamTraversal
-    from traversal.traversal_engine import TraversalEngine
+    from codecortex.core.types import TraversalConfig
+    from codecortex.traversal.beam_traversal import BeamTraversal
+    from codecortex.traversal.traversal_engine import TraversalEngine
 
     nodes = store.all_nodes()
     sample = random.sample(nodes, min(20, len(nodes)))
@@ -500,13 +500,13 @@ def phase5_ppr(py_files: list[Path], quiet: bool) -> None:
     import numpy as np
 
     store_full, _ = _build_full_cpg(py_files)
-    from graph.graph_pruner import GraphPruner
+    from codecortex.graph.graph_pruner import GraphPruner
 
     store, _ = GraphPruner().prune(store_full)
     adj = _build_adj(store)
 
-    from ranking.centrality_engine import CentralityEngine
-    from ranking.ppr_engine import PPREngine
+    from codecortex.ranking.centrality_engine import CentralityEngine
+    from codecortex.ranking.ppr_engine import PPREngine
 
     # Global PageRank (V0.1 approach)
     t0 = time.perf_counter()
@@ -598,14 +598,14 @@ def phase6_full_v02(py_files: list[Path], quiet: bool) -> None:
     store_full, errors = _build_full_cpg(py_files)
     t_cpg = time.perf_counter() - t_start
 
-    from graph.graph_pruner import GraphPruner
+    from codecortex.graph.graph_pruner import GraphPruner
 
     store, prune_stats = GraphPruner().prune(store_full)
     t_prune = time.perf_counter() - t_start - t_cpg
 
     real_pipeline, embed_time, emb_stats = _build_real_emb(store)
 
-    from clustering.louvain_clusterer import LouvainClusterer
+    from codecortex.clustering.louvain_clusterer import LouvainClusterer
 
     t_clust = time.perf_counter()
     louvain = LouvainClusterer(resolution=1.0).cluster(store)
@@ -613,8 +613,8 @@ def phase6_full_v02(py_files: list[Path], quiet: bool) -> None:
 
     adj = _build_adj(store)
 
-    from ranking.centrality_engine import CentralityEngine
-    from ranking.ppr_engine import PPREngine
+    from codecortex.ranking.centrality_engine import CentralityEngine
+    from codecortex.ranking.ppr_engine import PPREngine
 
     t_rank = time.perf_counter()
     global_engine = CentralityEngine(store, semantic_only=True)
@@ -628,7 +628,7 @@ def phase6_full_v02(py_files: list[Path], quiet: bool) -> None:
     t_total = time.perf_counter() - t_start
 
     # Retrieval with pre-computed centrality
-    from retrieval.retrieval_layer import RetrievalConfig, RetrievalLayer
+    from codecortex.retrieval.retrieval_layer import RetrievalConfig, RetrievalLayer
 
     layer = RetrievalLayer(
         store,
@@ -644,7 +644,7 @@ def phase6_full_v02(py_files: list[Path], quiet: bool) -> None:
     retr_ms = (time.perf_counter() - t_retr) / len(QUERIES) * 1000
 
     # Beam traversal
-    from traversal.beam_traversal import BeamTraversal
+    from codecortex.traversal.beam_traversal import BeamTraversal
 
     nodes = store.all_nodes()
     beam = BeamTraversal(adj, centrality, real_pipeline.embedding_store, beam_width=20)

@@ -79,9 +79,9 @@ def _collect_python_files(directory: Path) -> list[Path]:
 
 def bench_parse_and_build_cpg(py_files: list[Path], quiet: bool) -> dict:
     """Stage 1+3: Parse Python files and build CPG. Returns timing & graph stats."""
-    from core.parsers.python_parser import PythonParser
-    from graph.cpg_builder import CPGBuilder
-    from graph.graph_store import GraphStore
+    from codecortex.core.parsers.python_parser import PythonParser
+    from codecortex.graph.cpg_builder import CPGBuilder
+    from codecortex.graph.graph_store import GraphStore
 
     parser = PythonParser()
     store = GraphStore(":memory:")
@@ -142,7 +142,7 @@ def bench_parse_and_build_cpg(py_files: list[Path], quiet: bool) -> dict:
 
 def bench_semantic_index(store, quiet: bool) -> dict:
     """Stage 2: Build SemanticIndex and measure lookup latency."""
-    from indexing.semantic_index import SemanticIndex
+    from codecortex.indexing.semantic_index import SemanticIndex
 
     t0 = time.perf_counter()
     idx = SemanticIndex(store)
@@ -181,8 +181,8 @@ def bench_semantic_index(store, quiet: bool) -> dict:
 
 def bench_traversal(store, quiet: bool) -> dict:
     """Stage 5+6: BFS traversal latency and impact radius."""
-    from core.types import TraversalConfig
-    from traversal.traversal_engine import TraversalEngine
+    from codecortex.core.types import TraversalConfig
+    from codecortex.traversal.traversal_engine import TraversalEngine
 
     engine = TraversalEngine(store, enable_memoization=False)
     all_nodes = store.all_nodes()
@@ -219,7 +219,7 @@ def bench_traversal(store, quiet: bool) -> dict:
 
 def bench_ranking(store, quiet: bool) -> dict:
     """Stage 7: Centrality computation and hotspot detection."""
-    from ranking.centrality_engine import CentralityEngine
+    from codecortex.ranking.centrality_engine import CentralityEngine
 
     t0 = time.perf_counter()
     engine = CentralityEngine(store)
@@ -270,10 +270,10 @@ def bench_retrieval(store, quiet: bool, precomputed_centrality: dict = None) -> 
     - AdjacencyCache (in-memory edge maps, avoids per-hop SQL)
     - Pre-computed centrality (injected from bench_ranking to skip 7s recompute)
     """
-    from embeddings.embedding_pipeline import EmbeddingPipeline
-    from embeddings.provider_factory import EmbeddingConfig
-    from retrieval.retrieval_layer import RetrievalConfig, RetrievalLayer
-    from traversal.traversal_engine import AdjacencyCache
+    from codecortex.embeddings.embedding_pipeline import EmbeddingPipeline
+    from codecortex.embeddings.provider_factory import EmbeddingConfig
+    from codecortex.retrieval.retrieval_layer import RetrievalConfig, RetrievalLayer
+    from codecortex.traversal.traversal_engine import AdjacencyCache
 
     all_nodes = store.all_nodes()
     if not all_nodes:
