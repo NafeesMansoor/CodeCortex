@@ -4,6 +4,14 @@ All notable changes to CodeCortex are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and CodeCortex uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `codecortex health` warns when the pre-2.0.1 `codecortex` distribution is
+  still installed next to `codecortex-engine`, and gives the command that
+  removes it without deleting the files both packages share.
+
 ## [2.0.1] - 2026-10-29
 
 ### Changed

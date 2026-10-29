@@ -361,6 +361,14 @@ pip install codecortex-engine
 # tool installs: pipx uninstall codecortex && pipx install codecortex-engine
 ```
 
+If the new name went in first — for example through `codecortex update` from
+2.0.0 — `codecortex health` warns *Legacy package*. Uninstalling the old name
+then also removes files the new one shares, so reinstall right after:
+
+```bash
+pip uninstall -y codecortex && pip install --force-reinstall --no-deps codecortex-engine
+```
+
 A git checkout needs nothing beyond the usual `git checkout v2.0.1 && pip
 install -e .`; pip replaces the editable install's metadata.
 

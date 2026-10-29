@@ -52,6 +52,19 @@ class TestHealthCheck:
         assert report.healthy
         assert any(c.name.startswith("Optional") and not c.ok for c in report.checks)
 
+    def test_no_legacy_distribution_passes(self, monkeypatch):
+        monkeypatch.setattr(health_mod, "_legacy_distribution_version", lambda: None)
+        check = next(c for c in run_health_check().checks if c.name == "Legacy package")
+        assert check.ok
+
+    def test_legacy_distribution_is_only_a_warning(self, monkeypatch):
+        monkeypatch.setattr(health_mod, "_legacy_distribution_version", lambda: "2.0.0")
+        report = run_health_check()
+        check = next(c for c in report.checks if c.name == "Legacy package")
+        assert not check.ok and check.severity == "warning"
+        assert "--force-reinstall" in check.detail
+        assert report.healthy
+
     def test_unreadable_config_is_fatal(self, tmp_path):
         bad = tmp_path / "codecortex.yaml"
         bad.write_text("codecortex:\n  bfs_depth: [unclosed\n")

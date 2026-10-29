@@ -21,6 +21,10 @@ __version__ = "2.0.1"
 # (`codecortex`); keep it in sync with `name` in pyproject.toml.
 DIST_NAME = "codecortex-engine"
 
+# The distribution name used up to 2.0.0. An installation upgraded in place
+# can still have it registered alongside DIST_NAME, both owning the same files.
+LEGACY_DIST_NAME = "codecortex"
+
 # Installations older than this cannot upgrade in a single step; the updater
 # reports a mandatory staged upgrade instead. Raise it only on a release that
 # genuinely breaks the upgrade path.

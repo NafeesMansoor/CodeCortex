@@ -18,7 +18,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
-from codecortex.version import __version__, installed_metadata_version
+from codecortex.version import (
+    DIST_NAME,
+    LEGACY_DIST_NAME,
+    __version__,
+    installed_metadata_version,
+)
 
 CORE_MODULES = (
     "codecortex.core.types",
@@ -160,6 +165,37 @@ def _check_version_metadata(report: HealthReport) -> None:
     )
 
 
+def _legacy_distribution_version() -> Optional[str]:
+    try:
+        from importlib.metadata import PackageNotFoundError, version
+    except ImportError:  # pragma: no cover - stdlib since 3.8
+        return None
+    try:
+        return version(LEGACY_DIST_NAME)
+    except PackageNotFoundError:
+        return None
+
+
+def _check_legacy_distribution(report: HealthReport) -> None:
+    """Warn when the pre-2.0.1 distribution is still registered.
+
+    Upgrading in place from 2.0.0 or earlier installs DIST_NAME next to it, and
+    both record the same files. Uninstalling the old one deletes files the new
+    one needs, so the fix is uninstall followed by a forced reinstall.
+    """
+    legacy = _legacy_distribution_version()
+    if legacy is None:
+        report.add("Legacy package", True, f"no '{LEGACY_DIST_NAME}' distribution installed")
+        return
+    report.add(
+        "Legacy package",
+        False,
+        f"'{LEGACY_DIST_NAME}' {legacy} is still installed alongside '{DIST_NAME}' — run "
+        f"'pip uninstall -y {LEGACY_DIST_NAME} && pip install --force-reinstall --no-deps {DIST_NAME}'",
+        severity="warning",
+    )
+
+
 def _check_config(report: HealthReport, config_path: Optional[Path]) -> None:
     from codecortex.config import find_config
     from codecortex.config import load as load_config
@@ -232,6 +268,7 @@ def run_health_check(
     _check_core_modules(report)
     _check_grammars(report)
     _check_version_metadata(report)
+    _check_legacy_distribution(report)
     _check_database_engine(report)
     _check_config(report, config_path)
     _check_caches(report, index_dir)
