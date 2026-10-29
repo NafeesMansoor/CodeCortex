@@ -78,7 +78,10 @@ class TestSavedIndex:
         assert pipeline.graph_store.get_node("logout") is not None
         # app.py did not change; its call into service.py must not be lost.
         assert _callers(pipeline, "login") == {"main"}
-        assert json.loads((root / ".codecortex" / "state.json").read_text())["derived_stale"]
+        # Centrality is recomputed for the changed graph, so the saved state is
+        # current rather than stale (2.0.1 reused the old scores).
+        assert not json.loads((root / ".codecortex" / "state.json").read_text())["derived_stale"]
+        assert "logout" in pipeline._centrality_scores
 
     def test_deleted_file_is_dropped(self, tmp_path):
         root = _project(tmp_path)
