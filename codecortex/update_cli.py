@@ -14,7 +14,7 @@ from codecortex.updater import (
     installation_metadata,
     repo_slug,
 )
-from codecortex.version import CHANNELS, DEFAULT_CHANNEL, __version__
+from codecortex.version import CHANNELS, DEFAULT_CHANNEL, DIST_NAME, __version__
 
 
 def _channel_arg(parser: argparse.ArgumentParser) -> None:
@@ -150,7 +150,7 @@ def update_main(argv: list[str] | None = None) -> int:
         print(f"\nThis installation cannot update itself: {installation.reason}")
         print(
             f"Update manually, for example:\n  pip install --upgrade "
-            f"'codecortex @ git+https://github.com/{repo_slug()}.git@{release.tag}'"
+            f"'{DIST_NAME} @ git+https://github.com/{repo_slug()}.git@{release.tag}'"
         )
         return 1
 

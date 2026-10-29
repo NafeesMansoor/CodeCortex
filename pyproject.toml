@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "codecortex"
+name = "codecortex-engine"
 dynamic = ["version"]
 description = "Adaptive semantic intelligence engine for large-scale code understanding"
 readme = "README.md"

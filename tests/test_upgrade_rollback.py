@@ -23,7 +23,7 @@ from codecortex.installation import (
 )
 from codecortex.updater import Release
 from codecortex.upgrade import perform_upgrade, rollback_to_backup
-from codecortex.version import SemVer
+from codecortex.version import DIST_NAME, SemVer
 
 GIT_AVAILABLE = install_mod._git_available()
 needs_git = pytest.mark.skipif(not GIT_AVAILABLE, reason="git is not installed")
@@ -258,7 +258,7 @@ class TestPipStrategy:
 
         bare = make_release("1.2.0")
         source = PipInstallationUpdater._source_for(bare)
-        assert source.startswith("codecortex @ git+https://github.com/")
+        assert source.startswith(f"{DIST_NAME} @ git+https://github.com/")
         assert source.endswith("@v1.2.0")
 
     def test_install_only_upgrades_codecortex(self, monkeypatch):

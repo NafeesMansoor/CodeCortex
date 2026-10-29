@@ -4,6 +4,18 @@ All notable changes to CodeCortex are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and CodeCortex uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-10-29
+
+### Changed
+
+- **Published on PyPI as `codecortex-engine`.** The name `codecortex` is held
+  by an unrelated project, so `pip install codecortex` never installed
+  CodeCortex. Install with `pip install codecortex-engine`; the import package
+  and the `codecortex` command are unchanged. pip installations of 2.0.0 or
+  earlier must `pip uninstall codecortex` first — see *Upgrading to 2.0.1* in
+  UPDATING.md.
+- Tagged releases now publish to PyPI from the release workflow.
+
 ## [2.0.0] - 2026-10-27
 
 ### Breaking

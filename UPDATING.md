@@ -322,11 +322,14 @@ upgrade to pick it up; after that the normal flow applies.
 
 ```bash
 # pip installation
-pip install --upgrade "codecortex @ git+https://github.com/NafeesMansoor/CodeCortex.git@v2.0.0"
+# Installed 2.0.0 or earlier with pip? The package was renamed in 2.0.1;
+# remove the old name first so both don't claim the same files.
+pip uninstall -y codecortex
+pip install codecortex-engine
 
 # git checkout (commit or stash local changes first)
 cd /path/to/CodeCortex
-git fetch --tags origin && git checkout v2.0.0 && pip install -e .
+git fetch --tags origin && git checkout v2.0.1 && pip install -e .
 ```
 
 Then verify and re-index:
@@ -340,6 +343,26 @@ codecortex index .      # unstamped caches from older versions rebuild here
 Configuration is untouched by either route. Caches written before 1.2.0 carry
 no schema stamp, so the first open rebuilds them — see
 [Index cache migrations](#index-cache-migrations).
+
+### Upgrading to 2.0.1: the package is now `codecortex-engine`
+
+CodeCortex is published on PyPI as `codecortex-engine`, because the name
+`codecortex` belongs to an unrelated project there — `pip install codecortex`
+does not install CodeCortex. Only the distribution name changed: the import
+package, the `codecortex` command, configuration and index caches are the same.
+
+A pip installation of 2.0.0 or earlier is registered under the old name, and
+`codecortex update` from those versions would install the new name alongside
+it, leaving two packages that own the same files. Replace it by hand once:
+
+```bash
+pip uninstall -y codecortex
+pip install codecortex-engine
+# tool installs: pipx uninstall codecortex && pipx install codecortex-engine
+```
+
+A git checkout needs nothing beyond the usual `git checkout v2.0.1 && pip
+install -e .`; pip replaces the editable install's metadata.
 
 ### Upgrading to 2.0.0: code that imports CodeCortex modules
 

@@ -34,18 +34,18 @@ codecortex --help
 pip install git+https://github.com/NafeesMansoor/CodeCortex.git
 ```
 
-### Option C — Install from PyPI (when published)
+### Option C — Install from PyPI
 
 ```bash
 # Minimal (structural analysis only)
-pip install codecortex
+pip install codecortex-engine
 
 # With GPU-accelerated real embeddings
-pip install "codecortex[embeddings]"
+pip install "codecortex-engine[embeddings]"
 pip install torch --index-url https://download.pytorch.org/whl/cu121
 
 # Full stack (embeddings + LSP + clustering)
-pip install "codecortex[all]"
+pip install "codecortex-engine[all]"
 ```
 
 ### Optional extras

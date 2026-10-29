@@ -15,7 +15,11 @@ import re
 from dataclasses import dataclass, field
 from typing import Optional, Union
 
-__version__ = "2.0.0"
+__version__ = "2.0.1"
+
+# The PyPI distribution name. It differs from the import package
+# (`codecortex`); keep it in sync with `name` in pyproject.toml.
+DIST_NAME = "codecortex-engine"
 
 # Installations older than this cannot upgrade in a single step; the updater
 # reports a mandatory staged upgrade instead. Raise it only on a release that
@@ -167,7 +171,7 @@ def installed_metadata_version() -> Optional[str]:
     except ImportError:  # pragma: no cover - stdlib since 3.8
         return None
     try:
-        return version("codecortex")
+        return version(DIST_NAME)
     except PackageNotFoundError:
         return None
 

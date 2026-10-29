@@ -312,7 +312,7 @@ assistant queries it when a question needs it instead of grepping and
 reading files.
 
 ```bash
-pipx install "codecortex @ git+https://github.com/NafeesMansoor/CodeCortex.git@v2.0.0"
+pipx install codecortex-engine
 
 cd your-project
 codecortex install          # writes the assistant instructions (Claude Code by default)
@@ -401,21 +401,25 @@ under the single `codecortex` package, so it adds no other top-level names.
 
 ```bash
 # Recommended: isolated tool install (~100 MB, all 16 grammars included)
-pipx install "codecortex @ git+https://github.com/NafeesMansoor/CodeCortex.git@v2.0.0"
-# or: uv tool install "codecortex @ git+https://github.com/NafeesMansoor/CodeCortex.git@v2.0.0"
+pipx install codecortex-engine
+# or: uv tool install codecortex-engine
+# or a tagged release from GitHub:
+#     pipx install "codecortex-engine @ git+https://github.com/NafeesMansoor/CodeCortex.git@v2.0.1"
 
 # Optional model embeddings (sentence-transformers, torch, faiss) — large
-pipx install "codecortex[embeddings] @ git+https://github.com/NafeesMansoor/CodeCortex.git@v2.0.0"
+pipx install "codecortex-engine[embeddings]"
 
 # Or from a release artifact
-pipx install ./codecortex-2.0.0-py3-none-any.whl
+pipx install ./codecortex_engine-2.0.1-py3-none-any.whl
 
 # Verify
 codecortex health
 ```
 
-To upgrade a tool install, re-run the install command with the new tag and
-`--force` (`pipx install --force …` / `uv tool install --force …`).
+To upgrade a tool install, run `pipx upgrade codecortex-engine` (or `uv tool
+upgrade codecortex-engine`). A tool installed before 2.0.1 was named
+`codecortex`; replace it with `pipx uninstall codecortex && pipx install
+codecortex-engine`.
 
 ### Environment Variables
 
@@ -437,7 +441,7 @@ CodeCortex follows Semantic Versioning, with the version defined once in
 `codecortex/version.py` and read from there by the packaging metadata.
 
 ```bash
-codecortex --version          # CodeCortex 2.0.0
+codecortex --version          # CodeCortex 2.0.1
 codecortex version --check    # is a newer release available?
 codecortex update             # back up, install, migrate, verify, roll back on failure
 codecortex update --rollback  # restore the previous version
@@ -458,13 +462,16 @@ by hand; every release after this one is reachable with `codecortex update`.
 Check what you have, then pick the line matching how it was installed:
 
 ```bash
-codecortex --version    # or: pip show codecortex
+codecortex --version    # or: pip show codecortex  (codecortex-engine from 2.0.1)
 ```
 
 **Installed with pip:**
 
 ```bash
-pip install --upgrade "codecortex @ git+https://github.com/NafeesMansoor/CodeCortex.git@v2.0.0"
+# Installed 2.0.0 or earlier with pip? The package was renamed in 2.0.1;
+# remove the old name first so both don't claim the same files.
+pip uninstall -y codecortex
+pip install codecortex-engine
 ```
 
 **Installed as a git checkout** (`git clone` + `pip install -e .`):
@@ -472,14 +479,14 @@ pip install --upgrade "codecortex @ git+https://github.com/NafeesMansoor/CodeCor
 ```bash
 cd /path/to/CodeCortex
 git fetch --tags origin
-git checkout v2.0.0        # commit or stash local changes first
+git checkout v2.0.1        # commit or stash local changes first
 pip install -e .
 ```
 
 Then confirm, and re-index once:
 
 ```bash
-codecortex --version       # CodeCortex 2.0.0
+codecortex --version       # CodeCortex 2.0.1
 codecortex health          # expect Status: HEALTHY
 codecortex index .         # index caches from older versions are rebuilt
 ```
@@ -700,7 +707,7 @@ codecortex:
   use_graph_pruning: true
 ```
 
-Requires: `pip install "codecortex[all]"`
+Requires: `pip install "codecortex-engine[all]"`
 
 ### Enterprise Scale Mode
 On-demand CPG expansion + graph pruning + parallel indexing + incremental updates. Designed for monorepos with 500k+ LOC.

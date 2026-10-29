@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-from codecortex.version import SemVer, current
+from codecortex.version import DIST_NAME, SemVer, current
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +92,7 @@ def _is_editable_install() -> bool:
     except ImportError:  # pragma: no cover
         return False
     try:
-        dist = distribution("codecortex")
+        dist = distribution(DIST_NAME)
     except PackageNotFoundError:
         return False
     try:
@@ -355,7 +355,7 @@ class PipInstallationUpdater(InstallationUpdater):
         sdists = [url for name, url in release.assets.items() if name.endswith(".tar.gz")]
         if sdists:
             return sdists[0]
-        return f"codecortex @ git+https://github.com/{repo_slug()}.git@{release.tag}"
+        return f"{DIST_NAME} @ git+https://github.com/{repo_slug()}.git@{release.tag}"
 
     def install(self, release) -> None:
         # --upgrade without --upgrade-strategy eager: only CodeCortex moves,
@@ -369,7 +369,7 @@ class PipInstallationUpdater(InstallationUpdater):
         if version is None:
             raise UpdateError(f"backup records an unusable version: {backup.version!r}")
         _pip_install(
-            ["--upgrade", f"codecortex @ git+https://github.com/{repo_slug()}.git@v{version}"]
+            ["--upgrade", f"{DIST_NAME} @ git+https://github.com/{repo_slug()}.git@v{version}"]
         )
         restore_config(backup)
 
