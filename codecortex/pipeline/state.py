@@ -325,6 +325,10 @@ def load_state(
                 on_progress(index, len(changed), file_path)
 
     pipeline._indexed_files = [Path(p) for p in current]
+    # Centrality and clusters are functions of the whole graph: once any file
+    # changed they no longer match it, and reusing them made rankings drift
+    # away from a fresh rebuild of the same tree.
+    stale = bool(state.get("derived_stale")) or bool(changed or removed)
     embeddings_refreshed = False
     if derived:
         loaded = _load_embeddings(root, pipeline, current)
@@ -334,19 +338,19 @@ def load_state(
             embedding_pipeline, embeddings_refreshed = loaded
         pipeline._build_derived(
             PipelineStats(),
-            centrality=centrality,
-            cluster_memberships=state["clusters"],
+            centrality=None if stale else centrality,
+            cluster_memberships=None if stale else state["clusters"],
             embedding_pipeline=embedding_pipeline,
         )
     else:
-        # Carried through so a save below keeps them.
+        # Carried through so a save below keeps them; still stale until a
+        # derived load recomputes them.
         pipeline._centrality_scores = centrality
         pipeline._cluster_memberships = state["clusters"]
 
     result = OpenResult(source="loaded", reparsed=len(changed), removed=len(removed))
-    if changed or removed or embeddings_refreshed:
-        stale = bool(state.get("derived_stale")) or bool(changed or removed)
-        save_state(pipeline, root, derived_stale=stale)
+    if changed or removed or embeddings_refreshed or (derived and stale):
+        save_state(pipeline, root, derived_stale=stale and not derived)
         result.saved = True
     return pipeline, result
 
