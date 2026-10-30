@@ -139,3 +139,36 @@ class TestIncrementalCentrality:
         assert [r.qualified_name for r in loaded.retrieve(query)] == [
             r.qualified_name for r in fresh.retrieve(query)
         ]
+
+
+class TestEvidenceAwareExtensions:
+    def test_references_link_self_calls_missing_from_the_graph(self, pipeline):
+        plain = build_view(pipeline.graph_store)
+        assert ("AuthService.login", "AuthService.issue_token") not in plain.edges
+        view = build_view(pipeline.graph_store, references=True)
+        assert ("AuthService.login", "AuthService.issue_token") in view.edges
+        assert view.stats.references_added > 0
+
+    def test_references_resolve_imported_names(self, tmp_path):
+        (tmp_path / "pkg").mkdir()
+        (tmp_path / "pkg" / "__init__.py").write_text("")
+        (tmp_path / "pkg" / "util.py").write_text("def helper(x):\n    return x\n")
+        (tmp_path / "pkg" / "other.py").write_text("def helper(x):\n    return -x\n")
+        (tmp_path / "main.py").write_text(
+            "from pkg.util import helper\n\ndef run(x):\n    return helper(x)\n"
+        )
+        p = CodeCortexPipeline(PipelineConfig(enable_clustering=False))
+        p.build(tmp_path)
+        view = build_view(p.graph_store, references=True)
+        targets = {v for (u, v) in view.edges if u == "run"}
+        assert len(targets) == 1
+        assert view.file_of[targets.pop()].endswith("util.py")
+
+    def test_lexical_blend_is_off_by_default_and_deterministic(self, pipeline):
+        base = pipeline.reduce("issue token for user", budget=4)
+        assert base.selected == pipeline.reduce("issue token for user", budget=4).selected
+        cfg = TARPConfig(references=True, lexical_weight=0.5)
+        a = pipeline.reduce("issue token for user", budget=4, config=cfg)
+        b = pipeline.reduce("issue token for user", budget=4, config=cfg)
+        assert a.selected == b.selected and a.cost <= 4
+        assert "AuthService.issue_token" in a.selected

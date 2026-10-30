@@ -80,6 +80,9 @@ class TARPConfig:
     recovery_rounds: int = 2
     recovery_topk: int = 10
     recovery_coverage: float = 0.8
+    # Evidence-aware extensions (off by default, so the evaluated variants A-G are unchanged)
+    references: bool = False  # add scope-resolved Python references to the view
+    lexical_weight: float = 0.0  # share of BM25 over definition source in the semantic term S
 
     @classmethod
     def variant(cls, name: str, **overrides) -> "TARPConfig":
@@ -121,6 +124,16 @@ class ReductionResult:
 def _normalise(scores: dict[str, float]) -> dict[str, float]:
     top = max(scores.values(), default=0.0)
     return {k: v / top for k, v in scores.items()} if top > 0 else {k: 0.0 for k in scores}
+
+
+def blend_relevance(
+    semantic: dict[str, float], lexical: dict[str, float], weight: float
+) -> dict[str, float]:
+    """S = (1 - w) * embedding score + w * BM25 score, each max-normalised."""
+    if weight <= 0 or not lexical:
+        return semantic
+    a, b = _normalise(semantic), _normalise(lexical)
+    return {k: (1 - weight) * a.get(k, 0.0) + weight * b.get(k, 0.0) for k in set(a) | set(b)}
 
 
 def semantic_scores(view: GraphView, semantic: dict[str, float]) -> dict[str, float]:

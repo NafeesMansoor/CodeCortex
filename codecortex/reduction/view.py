@@ -8,6 +8,10 @@ unambiguous: a unique definition with that simple name, or a unique one in
 the edge's own file. Ambiguous endpoints are left unresolved and counted.
 The stored graph is never modified.
 
+With ``references``, scope-resolved Python references (see
+``codecortex.reduction.references``) are added as view edges, since the stored
+graph misses ``self.method()`` calls and most cross-file calls.
+
 Optional Level-1 condensation folds VARIABLE / PARAMETER / CALLSITE nodes
 into their parent definition, keeping the members so every original node
 still maps to a source location.
@@ -76,6 +80,7 @@ class ResolutionStats:
     self_loops_dropped: int = 0
     parallel_merged: int = 0
     nodes_condensed: int = 0
+    references_added: int = 0
 
     def to_dict(self) -> dict:
         return dict(vars(self))
@@ -118,7 +123,7 @@ class GraphView:
         return {m for v in selected for m in self.members.get(v, [v])}
 
 
-def build_view(store: GraphStore, condense: bool = False) -> GraphView:
+def build_view(store: GraphStore, condense: bool = False, references: bool = False) -> GraphView:
     nodes = store.all_nodes()
     kind = {n.qualified_name: n.kind for n in nodes}
     file_of = {n.qualified_name: n.file_path for n in nodes}
@@ -186,6 +191,20 @@ def build_view(store: GraphStore, condense: bool = False) -> GraphView:
         if w > adj[u].get(v, 0.0):
             adj[u][v] = w
             adj[v][u] = w
+    if references:
+        from codecortex.reduction.references import python_references
+
+        for u, v, k in python_references(nodes):
+            if u not in view_kind or v not in view_kind or u == v:
+                continue
+            kinds = edges.setdefault((u, v), {})
+            if not kinds:
+                stats.references_added += 1
+            kinds[k] = kinds.get(k, 0) + 1
+            w = EDGE_TYPE_WEIGHTS.get(k, 0.5)
+            if w > adj[u].get(v, 0.0):
+                adj[u][v] = w
+                adj[v][u] = w
     stats.edges_kept = len(edges)
     return GraphView(
         kind=view_kind,

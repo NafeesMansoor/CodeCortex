@@ -493,16 +493,25 @@ class CodeCortexPipeline:
     # Task-aware reduction (TARP)
     # ------------------------------------------------------------------
 
-    def reduction_view(self, condense: bool = False):
+    def reduction_view(self, condense: bool = False, references: bool = False):
         """Resolved graph view used by TARP; built once per graph state."""
         from codecortex.reduction.view import build_view
 
         cache = getattr(self, "_reduction_views", None)
         if cache is None or cache.get("store") is not self._store:
             cache = self._reduction_views = {"store": self._store}
-        if condense not in cache:
-            cache[condense] = build_view(self._store, condense=condense)
-        return cache[condense]
+        key = (condense, references)
+        if key not in cache:
+            cache[key] = build_view(self._store, condense=condense, references=references)
+        return cache[key]
+
+    def _lexical_index(self, view):
+        """BM25 index over the source of the view's definitions; cached with the view."""
+        from codecortex.reduction.lexical import build_index
+
+        if getattr(view, "_lexical", None) is None:
+            view._lexical = build_index(self._store.all_nodes(), set(view.kind))
+        return view._lexical
 
     def reduce(self, query: str, budget: Optional[float] = None, config=None, method: str = "tarp"):
         """Select a query-specific subgraph within ``budget`` (see codecortex.reduction.tarp).
@@ -510,12 +519,17 @@ class CodeCortexPipeline:
         ``method`` is "tarp" or one of ``codecortex.reduction.tarp.BASELINES``.
         Budget < 1 is a fraction of the view's nodes; >= 1 is absolute cost units.
         """
-        from codecortex.reduction.tarp import TARPConfig, TaskAwareReducer, reduce_baseline
+        from codecortex.reduction.tarp import (
+            TARPConfig,
+            TaskAwareReducer,
+            blend_relevance,
+            reduce_baseline,
+        )
 
         if self._retrieval_layer is None:
             raise RuntimeError("Pipeline not built.")
         cfg = config or TARPConfig()
-        view = self.reduction_view(condense=cfg.condense)
+        view = self.reduction_view(condense=cfg.condense, references=cfg.references)
         budget = self.config.tarp_budget if budget is None else budget
         if budget < 1:
             budget = max(1.0, budget * len(view.kind))
@@ -523,6 +537,9 @@ class CodeCortexPipeline:
         reducer = TaskAwareReducer(view, centrality)
         hits = self.embedding_store.search(query, top_k=200, threshold=0.0)
         semantic = {h.qualified_name: h.score for h in hits}
+        if cfg.lexical_weight > 0:
+            lexical = self._lexical_index(view).scores(query)
+            semantic = blend_relevance(semantic, lexical, cfg.lexical_weight)
         if method == "tarp":
             return reducer.reduce(semantic, budget, cfg)
         return reduce_baseline(method, reducer, semantic, budget, cfg)
