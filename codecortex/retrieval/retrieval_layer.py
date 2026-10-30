@@ -184,7 +184,8 @@ class RetrievalLayer:
                 )
             )
 
-        results.sort(key=lambda r: r.score, reverse=True)
+        # Name breaks ties so the ranking does not depend on set iteration (hash seed).
+        results.sort(key=lambda r: (-r.score, r.qualified_name))
 
         if cfg.token_budget:
             results = self._apply_token_budget(results, cfg.token_budget)
