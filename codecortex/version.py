@@ -15,7 +15,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Optional, Union
 
-__version__ = "2.0.1"
+__version__ = "2.0.2"
 
 # The PyPI distribution name. It differs from the import package
 # (`codecortex`); keep it in sync with `name` in pyproject.toml.

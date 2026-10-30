@@ -4,7 +4,15 @@ All notable changes to CodeCortex are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and CodeCortex uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.0.2] - 2026-10-30
+
+### Fixed
+
+- Rankings drifted after an incremental update: the graph was re-parsed
+  correctly, but the centrality and cluster scores saved before the edit were
+  carried over, so results differed from a fresh rebuild of the same tree.
+  Derived scores are now recomputed whenever files changed or the saved state
+  is marked stale.
 
 ### Added
 

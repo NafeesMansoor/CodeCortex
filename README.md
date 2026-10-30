@@ -404,13 +404,13 @@ under the single `codecortex` package, so it adds no other top-level names.
 pipx install codecortex-engine
 # or: uv tool install codecortex-engine
 # or a tagged release from GitHub:
-#     pipx install "codecortex-engine @ git+https://github.com/NafeesMansoor/CodeCortex.git@v2.0.1"
+#     pipx install "codecortex-engine @ git+https://github.com/NafeesMansoor/CodeCortex.git@v2.0.2"
 
 # Optional model embeddings (sentence-transformers, torch, faiss) — large
 pipx install "codecortex-engine[embeddings]"
 
 # Or from a release artifact
-pipx install ./codecortex_engine-2.0.1-py3-none-any.whl
+pipx install ./codecortex_engine-2.0.2-py3-none-any.whl
 
 # Verify
 codecortex health
@@ -441,7 +441,7 @@ CodeCortex follows Semantic Versioning, with the version defined once in
 `codecortex/version.py` and read from there by the packaging metadata.
 
 ```bash
-codecortex --version          # CodeCortex 2.0.1
+codecortex --version          # CodeCortex 2.0.2
 codecortex version --check    # is a newer release available?
 codecortex update             # back up, install, migrate, verify, roll back on failure
 codecortex update --rollback  # restore the previous version
@@ -479,14 +479,14 @@ pip install codecortex-engine
 ```bash
 cd /path/to/CodeCortex
 git fetch --tags origin
-git checkout v2.0.1        # commit or stash local changes first
+git checkout v2.0.2        # commit or stash local changes first
 pip install -e .
 ```
 
 Then confirm, and re-index once:
 
 ```bash
-codecortex --version       # CodeCortex 2.0.1
+codecortex --version       # CodeCortex 2.0.2
 codecortex health          # expect Status: HEALTHY
 codecortex index .         # index caches from older versions are rebuilt
 ```

@@ -329,7 +329,7 @@ pip install codecortex-engine
 
 # git checkout (commit or stash local changes first)
 cd /path/to/CodeCortex
-git fetch --tags origin && git checkout v2.0.1 && pip install -e .
+git fetch --tags origin && git checkout v2.0.2 && pip install -e .
 ```
 
 Then verify and re-index:
