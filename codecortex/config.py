@@ -61,10 +61,6 @@ class CodeCortexConfig:
     token_budget: int = 4000
     min_semantic_score: float = 0.0
 
-    # Task-aware reduction (TARP) at query time
-    use_tarp: bool = False
-    tarp_budget: float = 0.1
-
     exclude_paths: list[str] = field(default_factory=list)
     exclude_dirs: Optional[list[str]] = None  # None = built-in defaults
     respect_gitignore: bool = True
@@ -87,8 +83,6 @@ class CodeCortexConfig:
             retrieval_top_k=self.retrieval_top_k,
             retrieval_token_budget=self.token_budget,
             retrieval_min_semantic=self.min_semantic_score,
-            use_tarp=self.use_tarp,
-            tarp_budget=self.tarp_budget,
             exclude_paths=self.exclude_paths,
             exclude_dirs=self.exclude_dirs,
             respect_gitignore=self.respect_gitignore,
@@ -130,8 +124,6 @@ def load(path: str | Path) -> CodeCortexConfig:
         "retrieval_top_k": "retrieval_top_k",
         "token_budget": "token_budget",
         "min_semantic_score": "min_semantic_score",
-        "use_tarp": "use_tarp",
-        "tarp_budget": "tarp_budget",
         "exclude_paths": "exclude_paths",
         "exclude_dirs": "exclude_dirs",
         "respect_gitignore": "respect_gitignore",

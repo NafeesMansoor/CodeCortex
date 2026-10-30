@@ -101,14 +101,6 @@ def main(argv=None) -> int:
         help="Number of results to retrieve (default: 20)",
     )
     parser.add_argument(
-        "--tarp-budget",
-        type=float,
-        default=None,
-        metavar="B",
-        help="Restrict results to a task-aware reduced subgraph (TARP) of this budget: "
-        "< 1 is a fraction of graph nodes, >= 1 is absolute cost units",
-    )
-    parser.add_argument(
         "--config",
         metavar="PATH",
         default=None,
@@ -173,9 +165,6 @@ def main(argv=None) -> int:
     cc_config.centrality_ranking = args.enable_centrality_ranking
     cc_config.retrieval_top_k = args.top_k
     cc_config.token_budget = args.max_tokens
-    if args.tarp_budget is not None:
-        cc_config.use_tarp = True
-        cc_config.tarp_budget = args.tarp_budget
 
     if args.mode == "hybrid" or args.enable_on_demand_cfg:
         cc_config.on_demand_cfg = True
@@ -207,8 +196,6 @@ def main(argv=None) -> int:
         config_overrides={
             "retrieval_top_k": pipeline_cfg.retrieval_top_k,
             "retrieval_token_budget": pipeline_cfg.retrieval_token_budget,
-            "use_tarp": pipeline_cfg.use_tarp,
-            "tarp_budget": pipeline_cfg.tarp_budget,
         },
     )
 

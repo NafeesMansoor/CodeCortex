@@ -60,10 +60,6 @@ class PipelineConfig:
     use_beam_traversal: bool = False  # beam search traversal in retrieval
     use_ppr: bool = False  # personalized PageRank ranking
 
-    # TARP: task-aware, budget-constrained subgraph per query (codecortex.reduction)
-    use_tarp: bool = False
-    tarp_budget: float = 0.1  # < 1: fraction of view nodes; >= 1: absolute cost units
-
     # Retrieval settings
     retrieval_top_k: int = 20
     retrieval_token_budget: int = 4000
@@ -483,49 +479,7 @@ class CodeCortexPipeline:
             raise RuntimeError("Pipeline not built.")
         if self.config.on_demand_cfg or self.config.on_demand_dfg:
             self._trigger_on_demand_expansion(query, seed_nodes, intent)
-        results = self._retrieval_layer.retrieve(query, seed_nodes=seed_nodes, intent=intent)
-        if self.config.use_tarp:
-            kept = self.reduce(query).original_nodes
-            results = [r for r in results if r.qualified_name in kept]
-        return results
-
-    # ------------------------------------------------------------------
-    # Task-aware reduction (TARP)
-    # ------------------------------------------------------------------
-
-    def reduction_view(self, condense: bool = False):
-        """Resolved graph view used by TARP; built once per graph state."""
-        from codecortex.reduction.view import build_view
-
-        cache = getattr(self, "_reduction_views", None)
-        if cache is None or cache.get("store") is not self._store:
-            cache = self._reduction_views = {"store": self._store}
-        if condense not in cache:
-            cache[condense] = build_view(self._store, condense=condense)
-        return cache[condense]
-
-    def reduce(self, query: str, budget: Optional[float] = None, config=None, method: str = "tarp"):
-        """Select a query-specific subgraph within ``budget`` (see codecortex.reduction.tarp).
-
-        ``method`` is "tarp" or one of ``codecortex.reduction.tarp.BASELINES``.
-        Budget < 1 is a fraction of the view's nodes; >= 1 is absolute cost units.
-        """
-        from codecortex.reduction.tarp import TARPConfig, TaskAwareReducer, reduce_baseline
-
-        if self._retrieval_layer is None:
-            raise RuntimeError("Pipeline not built.")
-        cfg = config or TARPConfig()
-        view = self.reduction_view(condense=cfg.condense)
-        budget = self.config.tarp_budget if budget is None else budget
-        if budget < 1:
-            budget = max(1.0, budget * len(view.kind))
-        centrality = {n: s.composite_score for n, s in (self._centrality_scores or {}).items()}
-        reducer = TaskAwareReducer(view, centrality)
-        hits = self.embedding_store.search(query, top_k=200, threshold=0.0)
-        semantic = {h.qualified_name: h.score for h in hits}
-        if method == "tarp":
-            return reducer.reduce(semantic, budget, cfg)
-        return reduce_baseline(method, reducer, semantic, budget, cfg)
+        return self._retrieval_layer.retrieve(query, seed_nodes=seed_nodes, intent=intent)
 
     def _trigger_on_demand_expansion(
         self,

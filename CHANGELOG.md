@@ -11,21 +11,6 @@ All notable changes to CodeCortex are recorded here. The format follows
 - `codecortex health` warns when the pre-2.0.1 `codecortex` distribution is
   still installed next to `codecortex-engine`, and gives the command that
   removes it without deleting the files both packages share.
-- **TARP task-aware graph reduction** (`codecortex.reduction`). Selects a
-  query-specific subgraph within a cost budget, combining semantic,
-  dependency, path-participation and structural importance; ablation
-  variants A–G, optional Level-1 condensation and bounded evidence recovery,
-  plus six conventional baselines evaluated under the same budget. Opt in with
-  `codecortex query --tarp-budget B`, `use_tarp` / `tarp_budget` in
-  `codecortex.yaml`, or `pipeline.reduce(query, budget)`. Off by default;
-  retrieval is unchanged unless enabled. See codecortex/reduction/README.md.
-
-### Fixed
-
-- Rankings drifted after an incremental reload: re-parsed graphs reused the
-  centrality and cluster memberships saved before the edit, so results
-  differed from a fresh rebuild of the same tree. Derived scores are now
-  recomputed whenever files changed or the saved state is marked stale.
 
 ## [2.0.1] - 2026-10-29
 
